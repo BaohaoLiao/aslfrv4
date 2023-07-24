@@ -8,7 +8,7 @@ from datetime import datetime
 from Levenshtein import distance as Lev_distance
 
 from models.cnnencoder_transformerdecoder import CNNEncoderTransformerDecoder, TFLiteModel
-from metadata import XY_POINT_LANDMARKS
+from metadata import XY_POINT_LANDMARKS, PAD
 from data import filter_nans_tf, tf_nan_mean, tf_nan_std, decode_fn
 from train_cnnencoder_transformerdecoder import parse_args
 
@@ -60,6 +60,7 @@ class PreprocessLayer(tf.keras.layers.Layer):
             tf.reshape(dx2, (-1, length, frame_dim)),
         ], axis=-1)
         x = tf.where(tf.math.is_nan(x), tf.constant(0., x.dtype), x)
+        x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD)
         return x[0]
 
 
@@ -143,7 +144,7 @@ def main():
     global_n, global_d = 0, 0
     local_score = 0
     start_time = datetime.now()
-    n_samples = 1
+    n_samples = 10
     for i, batch in enumerate(batches[:n_samples]):
         output = tflitemodel(inputs=batch[0][0])
         prediction_str = "".join([num_to_char.get(s, "") for s in np.argmax(output["outputs"], axis=1)])

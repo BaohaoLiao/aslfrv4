@@ -60,7 +60,7 @@ class PreprocessLayer(tf.keras.layers.Layer):
             tf.reshape(dx2, (-1, length, frame_dim)),
         ], axis=-1)
         x = tf.where(tf.math.is_nan(x), tf.constant(0., x.dtype), x)
-        x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD)
+        #x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD)
         return x[0]
 
 

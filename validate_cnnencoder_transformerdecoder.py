@@ -118,6 +118,14 @@ def main():
     char_to_num[args.end_token] = args.end_token_id
     num_to_char = {j: i for i, j in char_to_num.items()}
 
+    valid_tffiles = [os.path.join(args.data_dir, f"fold{args.fold}.tfrecord")]
+    logging.info(f"Valid files: {valid_tffiles}")
+    ds = tf.data.TFRecordDataset(valid_tffiles, num_parallel_reads=tf.data.AUTOTUNE)
+    ds = ds.map(decode_fn, tf.data.AUTOTUNE)
+    ds = ds.padded_batch(1).prefetch(tf.data.AUTOTUNE)
+    batches = [batch for batch in ds]
+    logging.info(f"#VALIDATION SAMPLES: {len(batches)}")
+
     logging.info("--------- Corner Case --------------")
     frames = [
         tf.zeros(shape=[0, len(XY_POINT_LANDMARKS)]),  # length=0
@@ -138,14 +146,6 @@ def main():
         prediction_str = "".join([num_to_char.get(s, "") for s in np.argmax(output["outputs"], axis=1)])
         logging.info(f"{logging_infos[i]}\tShape: {tf.shape(frame)}\tPrediction: {prediction_str}")
     logging.info("--------- Success --------------")
-
-    valid_tffiles = [os.path.join(args.data_dir, f"fold{args.fold}.tfrecord")]
-    logging.info(f"Valid files: {valid_tffiles}")
-    ds = tf.data.TFRecordDataset(valid_tffiles, num_parallel_reads=tf.data.AUTOTUNE)
-    ds = ds.map(decode_fn, tf.data.AUTOTUNE)
-    ds = ds.padded_batch(1).prefetch(tf.data.AUTOTUNE)
-    batches = [batch for batch in ds]
-    logging.info(f"#VALIDATION SAMPLES: {len(batches)}")
 
     global_n, global_d = 0, 0
     local_score = 0

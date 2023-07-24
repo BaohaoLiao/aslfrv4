@@ -100,6 +100,12 @@ def main():
         prenorm=args.prenorm,
         activation=args.activation,
     )
+    virtual_intput = (
+        np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
+        np.zeros((1, args.max_target_length), dtype=np.int32)
+    )
+    logging.info(f"{tf.shape(model(virtual_intput))}")
+    model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)

@@ -105,7 +105,7 @@ def main():
         np.zeros((1, args.max_target_length), dtype=np.int32)
     )
     logging.info(f"{tf.shape(model(virtual_intput))}")
-    model.load_weights(args.checkpoint_path)
+    #model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)

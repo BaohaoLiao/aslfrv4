@@ -8,8 +8,8 @@ import numpy as np
 import tensorflow as tf
 
 from data import load_dataset
-from optimizer import LRInverseSqrtScheduler
-from display import DisplayOutputs
+#from optimizer import LRInverseSqrtScheduler
+#from display import DisplayOutputs
 
 
 logging.basicConfig(

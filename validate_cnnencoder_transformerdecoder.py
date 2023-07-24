@@ -66,7 +66,14 @@ class PreprocessLayer(tf.keras.layers.Layer):
 def main():
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
-
+    ignore_keys = ["checkpoint_path", "output_dir", "max_gen_length", "data_dir"]
+    with open(os.path.join(os.path.dirname(args.checkpoint_path), 'args.json'), 'r') as f:
+        trained_args = json.load(f)
+    for key, value in trained_args.items():
+        if (key not in ignore_keys):
+            setattr(args, key, value)
+    with open(os.path.join(args.output_dir, "valid_args.json"), "w") as f:
+        json.dump(args.__dict__, f, indent=2)
     logging.info(args)
 
     model = CNNEncoderTransformerDecoder(
@@ -124,6 +131,36 @@ def main():
         prediction_str = "".join([num_to_char.get(s, "") for s in np.argmax(output["outputs"], axis=1)])
         logging.info(f"{logging_infos[i]}\tShape: {tf.shape(frame)}\tPrediction: {prediction_str}")
     logging.info("--------- Success --------------")
+
+    valid_tffiles = [os.path.join(args.data_dir, f"fold{args.fold}.tfrecord")]
+    logging.info(f"Valid files: {valid_tffiles}")
+    ds = tf.data.TFRecordDataset(valid_tffiles, num_parallel_reads=tf.data.AUTOTUNE)
+    ds = ds.map(decode_fn, tf.data.AUTOTUNE)
+    ds = ds.padded_batch(1).prefetch(tf.data.AUTOTUNE)
+    batches = [batch for batch in ds]
+    logging.info(f"#VALIDATION SAMPLES: {len(batches)}")
+
+    global_n, global_d = 0, 0
+    local_score = 0
+    start_time = datetime.now()
+    n_samples = 1
+    for i, batch in enumerate(batches[:n_samples]):
+        output = tflitemodel(inputs=batch[0][0])
+        prediction_str = "".join([num_to_char.get(s, "") for s in np.argmax(output["outputs"], axis=1)])
+        target = batch[1][0].numpy().decode('utf-8')
+        lv_distance = Lev_distance(target, prediction_str)
+        global_n += len(target)
+        global_d += lv_distance
+        local_score += np.clip((len(target) - lv_distance) / len(target), a_min=0, a_max=1)
+
+        logging.info(f"{i + 1}/{len(batches)}\tTARGET: {target}\tPREDICTION: {prediction_str}\tLV: {lv_distance}\t"
+                     f"LENGTH: {len(target)}/{len(batch[0][0])}")
+    score = np.clip((global_n - global_d) / global_n, a_min=0, a_max=1)
+    logging.info(f"GLOBAL SCORE: {score}, GLOBAL_LENGTH: {global_n}, GLOBAL_DISTANCE: {global_d}, "
+                 f"LOCAL SCORE: {local_score / n_samples}")
+
+    end_time = datetime.now()
+    logging.info('Duration: {}'.format(end_time - start_time))
 
     fp16_keras_model_converter = tf.lite.TFLiteConverter.from_keras_model(tflitemodel)
     fp16_keras_model_converter.optimizations = [tf.lite.Optimize.DEFAULT]

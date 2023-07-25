@@ -589,7 +589,7 @@ class TFLiteModel(tf.Module):
     @tf.function(jit_compile=True)
     def encoder(self, x):
         encoder_attention_mask = tf.reduce_sum(tf.cast(x != PAD, tf.float32), axis=2) != 0
-        encoder_out = self.encoder(x, mask=encoder_attention_mask, training=False)
+        encoder_out = self.model.encoder(x, mask=encoder_attention_mask, training=False)
         if self.model.encoder_proj is not None:
             encoder_out = self.model.encoder_proj(encoder_out)
         return encoder_out, encoder_attention_mask

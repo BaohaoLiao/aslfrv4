@@ -60,7 +60,7 @@ class PreprocessLayer(tf.keras.layers.Layer):
             tf.reshape(dx2, (-1, length, frame_dim)),
         ], axis=-1)
         x = tf.where(tf.math.is_nan(x), tf.constant(0., x.dtype), x)
-        x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD) # TODO: remove
+        #x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD) # TODO: remove
         return x[0]
 
 
@@ -104,8 +104,8 @@ def main():
         np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
         np.zeros((1, args.max_target_length), dtype=np.int32)
     )
-    #logging.info(f"{tf.shape(model(virtual_intput))}")
-    #model.load_weights(args.checkpoint_path)
+    logging.info(f"{tf.shape(model(virtual_intput))}")
+    model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)

@@ -6,14 +6,12 @@ from metadata import PAD, XY_POINT_LANDMARKS
 class LandmarkEmbedding(tf.keras.layers.Layer):
     def __init__(self, d_model, **kwargs):
         super(LandmarkEmbedding, self).__init__(**kwargs)
-        self.mask_layer = tf.keras.layers.Masking(mask_value=PAD, name="mask")
         self.dense = tf.keras.layers.Dense(d_model, use_bias=False, name='proj')
-        self.norm = tf.keras.layers.BatchNormalization(momentum=0.95, name='bn')
+        self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
 
-    def call(self, x, training):
-        x = self.mask_layer(x)
+    def call(self, x):
         x = self.dense(x)
-        x = self.norm(x, training=training)
+        x = self.norm(x)
         return x
 
 
@@ -29,7 +27,6 @@ class CausalDWConv1D(tf.keras.layers.Layer):
             use_bias=use_bias,
             depthwise_initializer=depthwise_initializer,
             name="causal_conv1d")
-        self.supports_masking = True
 
     def call(self, inputs):
         x = self.causal_pad(inputs)
@@ -40,38 +37,36 @@ class CausalDWConv1D(tf.keras.layers.Layer):
 class ECA(tf.keras.layers.Layer):
     def __init__(self, kernel_size=5, **kwargs):
         super().__init__(**kwargs)
-        self.supports_masking = True
         self.conv = tf.keras.layers.Conv1D(
             1, kernel_size=kernel_size, strides=1, padding="same", use_bias=False, name="conv1d")
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs, mask):
         nn = tf.keras.layers.GlobalAveragePooling1D()(inputs, mask=mask)
         nn = tf.expand_dims(nn, -1)
         nn = self.conv(nn)
         nn = tf.squeeze(nn, -1)
         nn = tf.nn.sigmoid(nn)
-        nn = nn[:,None,:]
+        nn = nn[:, None, :]
         return inputs * nn
 
 
 class Conv1DBlock(tf.keras.layers.Layer):
     def __init__(self, d_model, conv_dim, kernel_size, dilation_rate, dropout, activation, **kwargs):
         super(Conv1DBlock, self).__init__(**kwargs)
-        self.supports_masking = True
         self.dense1 = tf.keras.layers.Dense(conv_dim, use_bias=True, activation=activation, name="dense1")
         self.causal_conv = CausalDWConv1D(
             kernel_size=kernel_size, dilation_rate=dilation_rate, use_bias=False, name="causal_conv")
-        self.norm = tf.keras.layers.BatchNormalization(momentum=0.95, name="bn")
+        self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
         self.eca = ECA(name="eca")
         self.dense2 = tf.keras.layers.Dense(d_model, use_bias=True, name="dense2")
         self.dropout = tf.keras.layers.Dropout(dropout, noise_shape=(None, 1, 1), name="dropout")
 
-    def call(self, x, training=False):
+    def call(self, x, mask, training):
         skip = x
         x = self.dense1(x)
         x = self.causal_conv(x)
-        x = self.norm(x, training=training)
-        x = self.eca(x)
+        x = self.norm(x)
+        x = self.eca(x, mask=mask)
         x = self.dense2(x)
         x = self.dropout(x, training=training)
         x = tf.keras.layers.add([x, skip])
@@ -87,16 +82,14 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
         self.qkv = tf.keras.layers.Dense(3 * d_model, use_bias=False, name="qkv")
         self.dropout = tf.keras.layers.Dropout(dropout)
         self.proj = tf.keras.layers.Dense(d_model, use_bias=False, name="out")
-        self.supports_masking = True
 
-    def call(self, inputs, mask=None, training=False):
+    def call(self, inputs, mask, training):
         qkv = self.qkv(inputs)
         qkv = tf.keras.layers.Permute((2, 1, 3))\
             (tf.keras.layers.Reshape((-1, self.num_heads, self.d_model * 3 // self.num_heads))(qkv))
         q, k, v = tf.split(qkv, [self.d_model // self.num_heads] * 3, axis=-1)
         attn = tf.matmul(q, k, transpose_b=True) * self.scale
-        if mask is not None:
-            mask = mask[:, None, None, :]
+        mask = mask[:, None, None, :]
         attn = tf.keras.layers.Softmax(axis=-1)(attn, mask=mask)
         attn = self.dropout(attn, training=training)
         x = attn @ v
@@ -121,27 +114,27 @@ class FeedForward(tf.keras.layers.Layer):
         return x
 
 
-class TransformerEncoder(tf.keras.layers.Layer):
+class TransformerEncoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, mlp_dim, attn_dropout, hidden_dropout, activation, **kwargs):
-        super(TransformerEncoder, self).__init__(**kwargs)
+        super(TransformerEncoderLayer, self).__init__(**kwargs)
         self.supports_masking = True
-        self.norm1 = tf.keras.layers.BatchNormalization(momentum=0.95, name="bn1")
+        self.norm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln1")
         self.attention = MultiHeadSelfAttention(d_model, num_heads, attn_dropout, name="custom_attention")
         self.attn_dropout = tf.keras.layers.Dropout(hidden_dropout, noise_shape=(None, 1, 1))
 
-        self.norm2 = tf.keras.layers.BatchNormalization(momentum=0.95, name="bn2")
+        self.norm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln2")
         self.mlp = FeedForward(d_model, mlp_dim, activation, name="mlp")
         self.mlp_dropout = tf.keras.layers.Dropout(hidden_dropout, noise_shape=(None, 1, 1))
 
-    def call(self, inputs, mask=None, training=False):
+    def call(self, inputs, mask, training):
         x = inputs
-        x = self.norm1(x, training=training)
+        x = self.norm1(x)
         x = self.attention(x, mask=mask)
         x = self.attn_dropout(x, training=training)
         x = tf.keras.layers.Add()([inputs, x])
         attn_out = x
 
-        x = self.norm2(x, training=training)
+        x = self.norm2(x)
         x = self.mlp(x)
         x = self.mlp_dropout(x)
         x = tf.keras.layers.Add()([attn_out, x])
@@ -152,7 +145,6 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout, hidden_dropout,
         activation, **kwargs):
         super(CNNEncoderLayer, self).__init__(**kwargs)
-        self.supports_masking = True
         self.convs = [Conv1DBlock(
             d_model=d_model,
             conv_dim=conv_dim,
@@ -161,7 +153,7 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
             dropout=hidden_dropout,
             activation=activation,
             name=f"conv{i}") for i in range(3)]
-        self.transformer_block = TransformerEncoder(
+        self.transformer_block = TransformerEncoderLayer(
             d_model=d_model,
             num_heads=num_heads,
             mlp_dim=mlp_dim,
@@ -170,10 +162,10 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
             activation=activation,
             name="transformer_encoder")
 
-    def call(self, inputs, mask=None, training=False):
+    def call(self, inputs, mask, training):
         x = inputs
         for conv in self.convs:
-            x = conv(x, training=training)
+            x = conv(x, mask=mask, training=training)
         x = self.transformer_block(x, mask=mask, training=training)
         return x
 
@@ -195,13 +187,13 @@ class CNNEncoder(tf.keras.layers.Layer):
                 hidden_dropout=hidden_dropout,
                 activation=activation,
                 name=f"encoder_layer{i}") for i in range(num_layers)]
-        self.norm = tf.keras.layers.BatchNormalization(momentum=0.95, name="bn")
+        self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
 
-    def call(self, inputs, mask=None, training=False):
-        x = self.embedding(inputs, training=training)
+    def call(self, inputs, mask, training):
+        x = self.embedding(inputs)
         for layer in self.layers:
             x = layer(x, mask=mask, training=training)
-        x = self.norm(x, training=training)
+        x = self.norm(x)
         return x
 
 
@@ -384,7 +376,6 @@ class TransformerDecoder(tf.keras.layers.Layer):
             x = self.final_norm(x)
         return x
 
-
 class LMHead(tf.keras.layers.Layer):
     def __init__(self, d_model, vocab_size, activation, **kwargs):
         super(LMHead, self).__init__(**kwargs)
@@ -480,8 +471,8 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
         source = inputs[0]
         target = inputs[1]
 
-        encoder_out = self.encoder(source, training=training)
-        encoder_attention_mask = encoder_out._keras_mask
+        encoder_attention_mask = tf.reduce_sum(tf.cast(source!=PAD, tf.float32), axis=2)!=0
+        encoder_out = self.encoder(source, mask=encoder_attention_mask, training=training)
         if self.encoder_proj is not None:
             encoder_out = self.encoder_proj(encoder_out)
 
@@ -544,8 +535,8 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
     def batch_generate(self, source, start_token_id, max_gen_length):
         batch_size = tf.shape(source)[0]
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * start_token_id
-        encoder_out = self.encoder(source, training=False)
-        encoder_attention_mask = encoder_out._keras_mask
+        encoder_attention_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
+        encoder_out = self.encoder(source, mask=encoder_attention_mask, training=False)
         if self.encoder_proj is not None:
             encoder_out = self.encoder_proj(encoder_out)
 
@@ -564,8 +555,8 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
     def efficient_generate(self, source, start_token_id, end_token_id, max_gen_length):
         batch_size = tf.shape(source)[0]
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * start_token_id
-        encoder_out = self.encoder(source, training=False)
-        encoder_attention_mask = encoder_out._keras_mask
+        encoder_attention_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
+        encoder_out = self.encoder(source, mask=encoder_attention_mask, training=False)
         if self.encoder_proj is not None:
             encoder_out = self.encoder_proj(encoder_out)
 
@@ -597,8 +588,8 @@ class TFLiteModel(tf.Module):
 
     @tf.function(jit_compile=True)
     def encoder(self, x):
-        encoder_out = self.model.encoder(x, training=False)
-        encoder_attention_mask = tf.reduce_sum(tf.cast(x!=PAD, tf.float32), axis=2)!=0
+        encoder_attention_mask = tf.reduce_sum(tf.cast(x != PAD, tf.float32), axis=2) != 0
+        encoder_out = self.encoder(x, mask=encoder_attention_mask, training=False)
         if self.model.encoder_proj is not None:
             encoder_out = self.model.encoder_proj(encoder_out)
         return encoder_out, encoder_attention_mask

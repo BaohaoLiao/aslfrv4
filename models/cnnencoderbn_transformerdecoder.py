@@ -190,7 +190,7 @@ class CNNEncoder(tf.keras.layers.Layer):
         self.norm = tf.keras.layers.BatchNormalization(momentum=0.95, name='bn')
 
     def call(self, inputs, mask, training):
-        x = self.embedding(inputs, trainin=training)
+        x = self.embedding(inputs, training=training)
         for layer in self.layers:
             x = layer(x, mask=mask, training=training)
         x = self.norm(x, training=training)

@@ -422,7 +422,7 @@ class CNNEncoderBNTransformerDecoder(tf.keras.Model):
         learnable_position: bool,
         prenorm: bool,
         activation: str):
-        super(CNNEncoderTransformerDecoder, self).__init__()
+        super(CNNEncoderBNTransformerDecoder, self).__init__()
         self.vocab_size = vocab_size
         self.pad_token_id = pad_token_id
         self.encoder = CNNEncoder(

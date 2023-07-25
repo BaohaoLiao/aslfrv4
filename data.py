@@ -178,7 +178,8 @@ class Preprocess(tf.keras.layers.Layer):
         else:
             x = inputs
 
-        mean = tf_nan_mean(tf.gather(x, [0], axis=2), axis=[1, 2], keepdims=True)
+        #mean = tf_nan_mean(tf.gather(x, [0], axis=2), axis=[1, 2], keepdims=True)
+        mean = tf_nan_mean(tf.gather(x, [6], axis=2), axis=[1, 2], keepdims=True)
         mean = tf.where(tf.math.is_nan(mean), tf.constant(0.5, x.dtype), mean)
         std = tf_nan_std(x, center=mean, axis=[1, 2], keepdims=True)
         x = (x - mean) / std

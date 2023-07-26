@@ -796,7 +796,6 @@ class TFLiteModelBeamSearch(tf.Module):
             sorted_indices = tf.argsort(all_scores, direction='DESCENDING')
             beam_scores = tf.gather(all_scores, sorted_indices[:beam_size])
             dec_input = tf.gather(all_sequences, sorted_indices[:beam_size])
-            tf.print(dec_input, beam_scores)
 
 
         x = dec_input[0]

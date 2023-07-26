@@ -759,13 +759,17 @@ class TFLiteModelBeamSearch(tf.Module):
 
         for _ in tf.range(max_gen_length-1):
             tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([beam_size, None]))])
-            all_candidates = []
+            all_candidates = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+            all_candidate_sequences = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+            candidate_index = 0
             for i in tf.range(beam_size):
                 seq = dec_input[i]
                 score = beam_scores[i]
 
                 if seq[-1] == self.end_token_id:
-                    all_candidates.append((score, seq))
+                    all_candidates = all_candidates.write(candidate_index, score)
+                    all_candidate_sequences = all_candidate_sequences.write(candidate_index, seq)
+                    candidate_index += 1
                     continue
 
                 next_token_logits = self.decoder(
@@ -780,13 +784,16 @@ class TFLiteModelBeamSearch(tf.Module):
                 for j in range(beam_size):
                     candidate_seq = tf.concat([seq, tf.reshape(tf.cast(top_indices[j], tf.int32), (1,))], axis=0)
                     candidate_score = top_scores[j]
-                    all_candidates.append((candidate_score, candidate_seq))
+                    all_candidates = all_candidates.write(candidate_index, candidate_score)
+                    all_candidate_sequences = all_candidate_sequences.write(candidate_index, candidate_seq)
+                    candidate_index += 1
 
-            all_candidates.sort(key=lambda x: x[0], reverse=True)
-            top_candidates = all_candidates[:beam_size]
-            beam_scores, dec_input = zip(*top_candidates)
-            beam_scores = tf.stack(beam_scores)
-            dec_input = tf.stack(dec_input)
+            all_scores = all_candidates.stack()
+            all_sequences = all_candidate_sequences.stack()
+
+            sorted_indices = tf.argsort(all_scores, direction='DESCENDING')
+            beam_scores = tf.gather(all_scores, sorted_indices[:beam_size])
+            dec_input = tf.gather(all_sequences, sorted_indices[:beam_size])
 
         x = dec_input[0]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK

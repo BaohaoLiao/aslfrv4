@@ -751,18 +751,43 @@ class TFLiteModelBeamSearch(tf.Module):
         x = x[None]
         batch_size = tf.shape(x)[0]
         encoder_out, encoder_attention_mask = self.encoder(x)
-        dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
-        for _ in range(max_gen_length-1):
-            logits = self.decoder(
-                dec_input=dec_input,
-                encoder_out=encoder_out,
-                encoder_attention_mask=encoder_attention_mask)
-            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
-            last_logit = logits[:, -1][..., tf.newaxis]
-            dec_input = tf.concat([dec_input, last_logit], axis=-1)
-            if (last_logit == self.end_token_id):
-                break
+        beam_size = 2
+        dec_input = tf.ones((beam_size, 1), dtype=tf.int32) * self.start_token_id
+        beam_scores = tf.zeros((beam_size,), dtype=tf.float32)
+        length_penalty = 0.6
+
+        for _ in tf.range(max_gen_length-1):
+            tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([beam_size, None]))])
+            all_candidates = []
+            for i in tf.range(beam_size):
+                seq = dec_input[i]
+                score = beam_scores[i]
+
+                if seq[-1] == self.end_token_id:
+                    all_candidates.append((score, seq))
+                    continue
+
+                next_token_logits = self.decoder(
+                    dec_input=tf.expand_dims(seq, 0),
+                    encoder_out=encoder_out,
+                    encoder_attention_mask=encoder_attention_mask)[0, -1]
+                next_token_probs = tf.squeeze(tf.nn.softmax(next_token_logits, axis=-1))
+                next_token_scores = (score * tf.cast(tf.shape(seq)[0], tf.float32) ** length_penalty + tf.math.log(
+                    next_token_probs)) / (tf.cast(tf.shape(seq)[0], tf.float32) + 1) ** length_penalty
+                top_scores, top_indices = tf.math.top_k(next_token_scores, k=beam_size)
+
+                for j in range(beam_size):
+                    candidate_seq = tf.concat([seq, tf.reshape(tf.cast(top_indices[j], tf.int32), (1,))], axis=0)
+                    candidate_score = top_scores[j]
+                    all_candidates.append((candidate_score, candidate_seq))
+
+            all_candidates.sort(key=lambda x: x[0], reverse=True)
+            top_candidates = all_candidates[:beam_size]
+            beam_scores, dec_input = zip(*top_candidates)
+            beam_scores = tf.stack(beam_scores)
+            dec_input = tf.stack(dec_input)
+
         x = dec_input[0]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
         idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)

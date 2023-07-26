@@ -753,7 +753,7 @@ class TFLiteModelBeamSearch(tf.Module):
         encoder_out, encoder_attention_mask = self.encoder(x)
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
-        for _ in np.range(max_gen_length-1):
+        for _ in range(max_gen_length-1):
             logits = self.decoder(
                 dec_input=dec_input,
                 encoder_out=encoder_out,

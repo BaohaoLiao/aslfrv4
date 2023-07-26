@@ -229,6 +229,16 @@ def preprocess(x, y, args, augment, max_source_length):
         )(x)[0]
     return tf.cast(x, tf.float32), y
 
+def maybe_concat_samples(sample1, sample2, concat_prob):
+    frame1, phrase1 = sample1
+    frame2, phrase2 = sample2
+    if tf.random.uniform(()) < concat_prob:
+        frame = tf.concat([frame1, frame2], axis=0)
+        phrase = tf.concat([phrase1[:-1], [0], phrase2[1:]], axis=0)  # delete <s>, </s> from phrase1
+    else:
+        frame, phrase = tf.identity(frame1), tf.identity(phrase1)
+    return frame, phrase
+
 
 def load_dataset(
     tfrecords,
@@ -252,15 +262,18 @@ def load_dataset(
     ds = ds.map(decode_fn, tf.data.AUTOTUNE)
     ds = ds.map(lambda x, y: encode(x, y, table, args.max_target_length), tf.data.AUTOTUNE)
 
-    ds = ds.map(
-        lambda x, y: preprocess(x, y, args=args, augment=augment, max_source_length=args.max_source_length),
-        tf.data.AUTOTUNE)
-
     if shuffle:
         ds = ds.shuffle(shuffle, reshuffle_each_iteration=True)
         options = tf.data.Options()
         options.experimental_deterministic = (False)
         ds = ds.with_options(options)
+        if args.concat > 0.:
+            ds_pairs = tf.data.Dataset.zip((ds, ds.skip(1)))
+            ds = ds_pairs.map(lambda xy1, xy2: maybe_concat_samples(xy1, xy2, args.concat))
+
+    ds = ds.map(
+        lambda x, y: preprocess(x, y, args=args, augment=augment, max_source_length=args.max_source_length),
+        tf.data.AUTOTUNE)
 
     if repeat:
         ds = ds.repeat()

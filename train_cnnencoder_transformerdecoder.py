@@ -13,6 +13,7 @@ from display import DisplayOutputs
 from models.cnnencoder_transformerdecoder import CNNEncoderTransformerDecoder
 from models.cnnencoderbn_transformerdecoder import CNNEncoderBNTransformerDecoder
 from models.cnnencoderv2_transformerdecoder import CNNEncoderv2TransformerDecoder
+from models.transformer import Transformer
 
 
 logging.basicConfig(
@@ -232,6 +233,26 @@ def main():
             learnable_position=args.learnable_position,
             prenorm=args.prenorm,
             activation=args.activation)
+    elif args.model_arch == "transformer":
+        model = Transformer(
+            num_encoder_layers=args.num_encoder_layers,
+            encoder_hidden_dim=args.encoder_hidden_dim,
+            encoder_mlp_dim=args.encoder_mlp_dim,
+            encoder_num_heads=args.encoder_num_heads,
+            max_source_length=args.max_source_length,
+            num_decoder_layers=args.num_decoder_layers,
+            vocab_size=args.vocab_size,
+            decoder_hidden_dim=args.decoder_hidden_dim,
+            decoder_mlp_dim=args.decoder_mlp_dim,
+            decoder_num_heads=args.decoder_num_heads,
+            max_target_length=args.max_target_length,
+            pad_token_id=args.pad_token_id,
+            emb_dropout=args.emb_dropout,
+            attn_dropout=args.attn_dropout,
+            hidden_dropout=args.hidden_dropout,
+            learnable_position=args.learnable_position,
+            prenorm=args.prenorm)
+
 
     model.compile(
         optimizer=optimizer,

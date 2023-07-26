@@ -233,7 +233,7 @@ def main():
             learnable_position=args.learnable_position,
             prenorm=args.prenorm,
             activation=args.activation)
-    elif args.model_arch == "transformer":
+    elif args.model_arch == "transformer": #
         model = Transformer(
             num_encoder_layers=args.num_encoder_layers,
             encoder_hidden_dim=args.encoder_hidden_dim,

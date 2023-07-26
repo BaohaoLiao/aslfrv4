@@ -672,7 +672,7 @@ class TFLiteModelv2(tf.Module):
         x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
         x = x[0]
 
-        frame_length = tf.shape(x)[1]
+        frame_length = tf.shape(x)[0]
         max_gen_length = frame_length // self.ratio + 1
         if max_gen_length > self.max_gen_length:
             max_gen_length = self.max_gen_length

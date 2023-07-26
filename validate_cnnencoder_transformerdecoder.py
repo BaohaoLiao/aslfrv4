@@ -162,6 +162,8 @@ def main():
     char_to_num[args.end_token] = args.end_token_id
     num_to_char = {j: i for i, j in char_to_num.items()}
 
+    if args.fold == "all":
+        args.fold = "0"
     valid_tffiles = [os.path.join(args.data_dir, f"fold{args.fold}.tfrecord")]
     logging.info(f"Valid files: {valid_tffiles}")
     ds = tf.data.TFRecordDataset(valid_tffiles, num_parallel_reads=tf.data.AUTOTUNE)

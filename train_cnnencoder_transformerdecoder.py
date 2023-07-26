@@ -229,6 +229,10 @@ def main():
         save_freq=steps_per_epoch,
     )
 
+    callbacks = [display_callback, model_checkpoint_callback]
+    if args.fold == "all":
+        callbacks = [model_checkpoint_callback]
+
     # Train
     _ = model.fit(
         train_dataset,
@@ -237,7 +241,7 @@ def main():
         epochs=args.num_epochs,
         steps_per_epoch=steps_per_epoch,
         validation_steps=-(num_valid // -args.batch_size),
-        callbacks=[display_callback, model_checkpoint_callback])
+        callbacks=callbacks)
     logging.info(model.summary())
 
 

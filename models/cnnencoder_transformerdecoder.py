@@ -637,7 +637,7 @@ class TFLiteModel(tf.Module):
 
 
 class TFLiteModelv2(tf.Module):
-    def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length, ratio=5):
+    def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length, ratio=4):
         super(TFLiteModelv2, self).__init__()
         self.start_token_id = start_token_id
         self.end_token_id = end_token_id
@@ -691,6 +691,7 @@ class TFLiteModelv2(tf.Module):
                 dec_input=dec_input,
                 encoder_out=encoder_out,
                 encoder_attention_mask=encoder_attention_mask)
+            logits = tf.concat([logits[:, :, :59], logits[:, :, 61:]], axis=-1)
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)

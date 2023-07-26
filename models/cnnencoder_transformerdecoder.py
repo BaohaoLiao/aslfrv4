@@ -753,25 +753,21 @@ class TFLiteModelBeamSearch(tf.Module):
         encoder_out, encoder_attention_mask = self.encoder(x)
 
         beam_size = 2
-        dec_input = tf.ones((beam_size, 1), dtype=tf.int32) * self.start_token_id
+        dec_input = tf.ones((beam_size, max_gen_length), dtype=tf.int32) * self.start_token_id
         beam_scores = tf.zeros((beam_size,), dtype=tf.float32)
         length_penalty = 0.6
 
-        for _ in tf.range(max_gen_length-1):
+        for step in tf.range(max_gen_length-1):
             tf.autograph.experimental.set_loop_options(
                 shape_invariants=[(dec_input, tf.TensorShape([None, None])),
                                   (beam_scores, tf.TensorShape([None]))])
-            all_candidates = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-            all_candidate_sequences = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
-            candidate_index = 0
+            all_scores = tf.Variable(tf.zeros((beam_size ** 2,)))
+            all_sequences = tf.Variable(tf.ones((beam_size ** 2, max_gen_length), dtype=tf.int32) * self.start_token_id)
             for i in tf.range(beam_size):
-                seq = dec_input[i]
+                seq = dec_input[i, :step+1]
                 score = beam_scores[i]
 
                 if seq[-1] == self.end_token_id:
-                    all_candidates = all_candidates.write(candidate_index, score)
-                    all_candidate_sequences = all_candidate_sequences.write(candidate_index, seq)
-                    candidate_index += 1
                     continue
 
                 next_token_logits = self.decoder(
@@ -783,22 +779,21 @@ class TFLiteModelBeamSearch(tf.Module):
                     next_token_probs)) / (tf.cast(tf.shape(seq)[0], tf.float32) + 1) ** length_penalty
                 top_scores, top_indices = tf.math.top_k(next_token_scores, k=beam_size)
 
-                for j in range(beam_size):
-                    candidate_seq = tf.concat([seq, tf.reshape(tf.cast(top_indices[j], tf.int32), (1,))], axis=0)
-                    candidate_score = top_scores[j]
-                    all_candidates = all_candidates.write(candidate_index, candidate_score)
-                    all_candidate_sequences = all_candidate_sequences.write(candidate_index, candidate_seq)
-                    candidate_index += 1
+                for j in tf.range(beam_size):
+                    all_scores[i * beam_size + j].assign(top_scores[j])
+                    all_sequences[i * beam_size + j, :step + 2].assign(
+                        tf.concat([seq, tf.reshape(top_indices[j], (1,))], axis=0))
 
-            all_scores = all_candidates.stack()
-            all_sequences = all_candidate_sequences.stack()
+                sorted_indices = tf.argsort(all_scores, direction='DESCENDING')
+                best_score = tf.gather(all_scores, sorted_indices[0])
+                best_sequence = tf.gather_nd(all_sequences, [sorted_indices[0]])
 
-            sorted_indices = tf.argsort(all_scores, direction='DESCENDING')
-            beam_scores = tf.gather(all_scores, sorted_indices[:beam_size])
-            dec_input = tf.gather(all_sequences, sorted_indices[:beam_size])
+                beam_scores = tf.reshape(best_score, (1, 1))
+                dec_input = tf.concat([best_sequence[tf.newaxis, :],
+                                             tf.ones((beam_size - 1, max_gen_length), dtype=tf.int32) * self.start_token_id],
+                                            axis=0)
 
-
-        x = dec_input[0]
+        x = best_sequence[1:]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
         idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)
         x = x[1:idx] # replace pad token?

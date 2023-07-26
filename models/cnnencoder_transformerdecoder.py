@@ -758,9 +758,9 @@ class TFLiteModelBeamSearch(tf.Module):
         length_penalty = 0.6
 
         for _ in tf.range(max_gen_length-1):
-            #tf.autograph.experimental.set_loop_options(
-            #    shape_invariants=[(dec_input, tf.TensorShape([None, None])),
-            #                      (beam_scores, tf.TensorShape([None]))])
+            tf.autograph.experimental.set_loop_options(
+                shape_invariants=[(dec_input, tf.TensorShape([None, None])),
+                                  (beam_scores, tf.TensorShape([None]))])
             all_candidates = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
             all_candidate_sequences = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
             candidate_index = 0

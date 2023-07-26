@@ -78,6 +78,7 @@ def parse_args():
     parser.add_argument("--spatial_mask", type=float, default=0.)
     parser.add_argument("--use_speed", action="store_true")
     parser.add_argument("--use_acceleration", action="store_true")
+    parser.add_argument("--concat", type=float, default=0.)
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)

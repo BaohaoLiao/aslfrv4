@@ -752,7 +752,7 @@ class TFLiteModelBeamSearch(tf.Module):
         batch_size = tf.shape(x)[0]
         encoder_out, encoder_attention_mask = self.encoder(x)
 
-        beam_size = 2
+        beam_size = 1
         dec_input = tf.ones((beam_size, 1), dtype=tf.int32) * self.start_token_id
         beam_scores = tf.zeros((beam_size,), dtype=tf.float32)
         length_penalty = 0.6

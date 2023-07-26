@@ -706,7 +706,7 @@ class TFLiteModelv2(tf.Module):
 
 class TFLiteModelBeamSearch(tf.Module):
     def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length, ratio=5):
-        super(TFLiteModelv2, self).__init__()
+        super(TFLiteModelBeamSearch, self).__init__()
         self.start_token_id = start_token_id
         self.end_token_id = end_token_id
         self.pad_token_id = pad_token_id

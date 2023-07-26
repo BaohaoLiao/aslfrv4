@@ -685,7 +685,8 @@ class TFLiteModelv2(tf.Module):
         encoder_out, encoder_attention_mask = self.encoder(x)
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
-        for _ in tf.range(max_gen_length-1):
+        for i in tf.range(max_gen_length-1):
+            tf.print(i, max_gen_length)
             tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
             logits = self.decoder(
                 dec_input=dec_input,

@@ -754,13 +754,11 @@ class TFLiteModelBeamSearch(tf.Module):
 
         beam_size = 2
         dec_input = tf.ones((beam_size, max_gen_length), dtype=tf.int32) * self.start_token_id
-        beam_scores = tf.zeros((beam_size,), dtype=tf.float32)
+        beam_scores = tf.zeros((beam_size, 1), dtype=tf.float32)
         length_penalty = 0.6
 
+        best_sequence = tf.ones((1, max_gen_length), dtype=tf.int32) * self.start_token_id
         for step in tf.range(max_gen_length-1):
-            tf.autograph.experimental.set_loop_options(
-                shape_invariants=[(dec_input, tf.TensorShape([None, None])),
-                                  (beam_scores, tf.TensorShape([None]))])
             all_scores = tf.Variable(tf.zeros((beam_size ** 2,)))
             all_sequences = tf.Variable(tf.ones((beam_size ** 2, max_gen_length), dtype=tf.int32) * self.start_token_id)
             for i in tf.range(beam_size):

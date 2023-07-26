@@ -27,9 +27,9 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
     phrase = start_token + phrase + end_token
     phrase = tf.strings.bytes_split(phrase)
     phrase = table.lookup(phrase)
-    phrase = tf.pad(
-        phrase, paddings=[[0, max_target_length - tf.shape(phrase)[0]]], mode = 'CONSTANT',
-        constant_values = pad_token_id)
+    #phrase = tf.pad(
+    #    phrase, paddings=[[0, max_target_length - tf.shape(phrase)[0]]], mode = 'CONSTANT',
+    #    constant_values = pad_token_id)
     return landmarks, phrase
 
 def filter_nans_tf(x):

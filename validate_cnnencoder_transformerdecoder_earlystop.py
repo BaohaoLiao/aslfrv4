@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+import random
 import numpy as np
 import tensorflow as tf
 from datetime import datetime
@@ -66,6 +67,14 @@ class PreprocessLayerv2(tf.keras.layers.Layer):
 
 def main():
     args = parse_args()
+
+    def seed_everything(seed=42):
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.random.set_seed(seed)
+    seed_everything(seed=args.seed)
+
     os.makedirs(args.output_dir, exist_ok=True)
     ignore_keys = ["checkpoint_path", "output_dir", "max_gen_length", "data_dir"]
     with open(os.path.join(os.path.dirname(args.checkpoint_path), 'args.json'), 'r') as f:

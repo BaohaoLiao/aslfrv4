@@ -636,3 +636,71 @@ class TFLiteModel(tf.Module):
         return {'outputs': x}
 
 
+class TFLiteModelv2(tf.Module):
+    def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length, ratio=4):
+        super(TFLiteModel, self).__init__()
+        self.start_token_id = start_token_id
+        self.end_token_id = end_token_id
+        self.pad_token_id = pad_token_id
+        self.max_gen_length = max_gen_length
+        self.model = model
+        self.preprocess_layer = preprocess_layer
+        self.ratio=ratio
+
+    @tf.function(jit_compile=True)
+    def encoder(self, x):
+        encoder_attention_mask = tf.reduce_sum(tf.cast(x != PAD, tf.float32), axis=2) != 0
+        encoder_out = self.model.encoder(x, mask=encoder_attention_mask, training=False)
+        if self.model.encoder_proj is not None:
+            encoder_out = self.model.encoder_proj(encoder_out)
+        return encoder_out, encoder_attention_mask
+
+    @tf.function(jit_compile=True)
+    def decoder(self, dec_input, encoder_out, encoder_attention_mask):
+        dec_output = self.model.decoder(
+            input_ids=dec_input,
+            encoder_out=encoder_out,
+            encoder_attention_mask=encoder_attention_mask,
+            training=False
+        )
+        return self.model.lm_head(dec_output)
+
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, len(XY_POINT_LANDMARKS)], dtype=tf.float32, name='inputs')])
+    def __call__(self, inputs, training=False):
+        x = tf.cast(inputs, tf.float32)
+        x = x[None]
+        x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
+        x = x[0]
+
+        frame_length = tf.shape(x)[1]
+        max_gen_length = frame_length // self.ratio + 1
+        if max_gen_length > self.max_gen_length:
+            max_gen_length = self.max_gen_length
+        if max_gen_length < 2:
+            max_gen_length = 2
+
+        x = self.preprocess_layer(x)
+        x = x[None]
+        batch_size = tf.shape(x)[0]
+        encoder_out, encoder_attention_mask = self.encoder(x)
+        dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
+
+        for _ in tf.range(max_gen_length-1):
+            tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
+            logits = self.decoder(
+                dec_input=dec_input,
+                encoder_out=encoder_out,
+                encoder_attention_mask=encoder_attention_mask)
+            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
+            last_logit = logits[:, -1][..., tf.newaxis]
+            dec_input = tf.concat([dec_input, last_logit], axis=-1)
+            if (last_logit == self.end_token_id):
+                break
+        x = dec_input[0]
+        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
+        idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)
+        x = x[1:idx] # replace pad token?
+        x = tf.one_hot(x, 59) # how about not in 59?
+        return {'outputs': x}
+
+

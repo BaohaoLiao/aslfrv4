@@ -691,7 +691,7 @@ class TFLiteModelv2(tf.Module):
                 dec_input=dec_input,
                 encoder_out=encoder_out,
                 encoder_attention_mask=encoder_attention_mask)
-            logits = tf.concat([logits[:, :, :59], logits[:, :, 61:]], axis=-1)
+            #logits = tf.concat([logits[:, :, :59], logits[:, :, 61:]], axis=-1)
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)

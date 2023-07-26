@@ -674,11 +674,12 @@ class TFLiteModelv2(tf.Module):
 
         frame_length = tf.shape(x)[0]
         max_gen_length = frame_length // self.ratio + 1
-        tf.print(max_gen_length)
+        tf.print("before", max_gen_length)
         if max_gen_length > self.max_gen_length:
             max_gen_length = self.max_gen_length
         if max_gen_length < 2:
             max_gen_length = 2
+        tf.print("after", max_gen_length)
 
         x = self.preprocess_layer(x)
         x = x[None]

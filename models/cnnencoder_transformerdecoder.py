@@ -672,6 +672,7 @@ class TFLiteModelv2(tf.Module):
         x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
         x = x[0]
 
+        """
         frame_length = tf.shape(x)[0]
         max_gen_length = frame_length // self.ratio + 1
         tf.print("before", max_gen_length)
@@ -679,6 +680,7 @@ class TFLiteModelv2(tf.Module):
             max_gen_length = self.max_gen_length
         if max_gen_length < 2:
             max_gen_length = 2
+        """
 
         x = self.preprocess_layer(x)
         x = x[None]
@@ -686,7 +688,7 @@ class TFLiteModelv2(tf.Module):
         encoder_out, encoder_attention_mask = self.encoder(x)
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
-        for _ in tf.range(max_gen_length-1):
+        for _ in tf.range(self.max_gen_length-1):
             tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
             logits = self.decoder(
                 dec_input=dec_input,

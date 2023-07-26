@@ -640,7 +640,7 @@ class TFLiteModelv2(tf.Module):
     def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length, ratio=4):
         super(TFLiteModelv2, self).__init__()
         self.start_token_id = start_token_id
-        self.end_token_id = end_token_id
+        self.end_token_id = 59 #end_token_id
         self.pad_token_id = pad_token_id
         self.max_gen_length = max_gen_length
         self.model = model
@@ -695,7 +695,7 @@ class TFLiteModelv2(tf.Module):
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
-            if (last_logit == 59):
+            if (last_logit == self.end_token_id):
                 break
         x = dec_input[0]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK

@@ -796,6 +796,8 @@ class TFLiteModelBeamSearch(tf.Module):
             sorted_indices = tf.argsort(all_scores, direction='DESCENDING')
             beam_scores = tf.gather(all_scores, sorted_indices[:beam_size])
             dec_input = tf.gather(all_sequences, sorted_indices[:beam_size])
+            tf.print(dec_input, beam_scores)
+
 
         x = dec_input[0]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK

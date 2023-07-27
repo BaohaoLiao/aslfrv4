@@ -34,15 +34,16 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
 
 def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
     if mask_prob > 0.:
-        masked_char_ids = np.array(phrase, copy=True)
-        mask_range = slice(1, len(masked_char_ids) - 1)
-        mask = np.random.rand(*masked_char_ids[mask_range].shape) < mask_prob
-        masked_char_ids[mask_range][mask] = mask_token_id
-        labels = np.array(phrase, copy=True)
-        random_replace = mask & (np.random.rand(*masked_char_ids[mask_range].shape) < random_token_prob)
-        random_char_ids = np.random.randint(0, 59, size=masked_char_ids[mask_range].shape)
-        masked_char_ids[mask_range][random_replace] = random_char_ids[random_replace]
-        return landmarks, masked_char_ids, labels
+        masked_char_ids = tf.identity(phrase)
+        mask_range = slice(1, tf.shape(masked_char_ids)[0] - 1)
+        mask = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), dtype=tf.float32) < mask_prob
+        masked_char_ids[mask_range] = tf.where(mask, mask_token_id, masked_char_ids[mask_range])
+        random_replace = mask & (tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]),
+                                                   dtype=tf.float32) < random_token_prob)
+        random_char_ids = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), minval=0,
+                                            maxval=59, dtype=tf.int32)
+        masked_char_ids[mask_range] = tf.where(random_replace, random_char_ids, masked_char_ids[mask_range])
+        return landmarks, masked_char_ids, phrase
     else:
         return landmarks, phrase, phrase
 

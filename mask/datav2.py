@@ -39,7 +39,7 @@ def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
         mask_range_end = tf.shape(masked_char_ids)[0] - 1
         mask_range = tf.range(mask_range_start, mask_range_end)
         mask = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), dtype=tf.float32) < mask_prob
-        mask_indices = tf.boolean_mask(mask_range, mask)
+        mask_indices = tf.where(mask)
         mask_values = tf.fill(tf.shape(mask_indices), mask_token_id)
         masked_char_ids = tf.tensor_scatter_nd_update(masked_char_ids, tf.expand_dims(mask_indices, axis=1),
                                                       mask_values)

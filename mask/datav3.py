@@ -37,6 +37,7 @@ def linear_decay(start_value, current_step, total_steps, end_value=0.):
 
 def apply_mask(sample, mask_prob, mask_token_id, random_token_prob, current_step, total_steps):
     mask_prob = tf.cast(linear_decay(mask_prob, current_step, total_steps), dtype=tf.float32)
+    tf.print("step", current_step, "prob", mask_prob)
     landmarks, phrase = sample
     if mask_prob > 0.:
         masked_char_ids = tf.identity(phrase)

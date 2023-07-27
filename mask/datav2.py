@@ -51,7 +51,8 @@ def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
             tf.expand_dims(random_indices, axis=1),
             random_char_ids)
         tf.print(masked_char_ids, phrase)
-        return tf.identity(landmarks), masked_char_ids, tf.identity(phrase)
+        #return tf.identity(landmarks), masked_char_ids, tf.identity(phrase)
+        return landmarks, phrase, phrase
     else:
         return tf.identity(landmarks), tf.identity(phrase), tf.identity(phrase)
 

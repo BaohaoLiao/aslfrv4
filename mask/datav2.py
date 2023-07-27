@@ -37,12 +37,20 @@ def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
         masked_char_ids = tf.identity(phrase)
         mask_range = slice(1, tf.shape(masked_char_ids)[0] - 1)
         mask = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), dtype=tf.float32) < mask_prob
-        masked_char_ids[mask_range] = tf.where(mask, mask_token_id, masked_char_ids[mask_range])
+        masked_char_ids = tf.tensor_scatter_nd_update(
+            masked_char_ids,
+            tf.expand_dims(tf.boolean_mask(mask_range, mask), axis=1),
+            tf.fill(tf.shape(masked_char_ids[mask_range]), mask_token_id))
+
+
         random_replace = mask & (tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]),
                                                    dtype=tf.float32) < random_token_prob)
         random_char_ids = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), minval=0,
                                             maxval=59, dtype=tf.int32)
-        masked_char_ids[mask_range] = tf.where(random_replace, random_char_ids, masked_char_ids[mask_range])
+        masked_char_ids = tf.tensor_scatter_nd_update(
+            masked_char_ids,
+            tf.expand_dims(tf.boolean_mask(mask_range, random_replace), axis=1),
+            random_char_ids)
         return tf.identity(landmarks), masked_char_ids, tf.identity(phrase)
     else:
         return tf.identity(landmarks), tf.identity(phrase), tf.identity(phrase)

@@ -520,7 +520,6 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
     def test_step(self, batch):
         source = batch[0]
         target = batch[1]
-        assert batch[1] == batch[2]
         dec_input = target[:, :-1]
         dec_target = target[:, 1:]
         preds = self([source, dec_input], training=False)

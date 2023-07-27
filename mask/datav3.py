@@ -256,15 +256,14 @@ def preprocess(x, y, args, augment, max_source_length):
     return tf.cast(x, tf.float32), y
 
 def maybe_concat_samples(sample1, sample2, concat_prob):
-    frame1, phrase1, label1 = sample1
-    frame2, phrase2, label2 = sample2
+    frame1, phrase1 = sample1
+    frame2, phrase2 = sample2
     if tf.random.uniform(()) < concat_prob:
         frame = tf.concat([frame1, frame2], axis=0)
         phrase = tf.concat([phrase1[:-1], [0], phrase2[1:]], axis=0)  # delete <s>, </s> from phrase1
-        label = tf.concat([label1[:-1], [0], label2[1:]], axis=0)  # delete <s>, </s> from phrase1
     else:
-        frame, phrase, label = tf.identity(frame1), tf.identity(phrase1), tf.identity(label1)
-    return frame, phrase, label
+        frame, phrase = tf.identity(frame1), tf.identity(phrase1)
+    return frame, phrase
 
 
 def load_dataset(
@@ -296,7 +295,7 @@ def load_dataset(
         ds = ds.with_options(options)
         if args.concat > 0.:
             ds_pairs = tf.data.Dataset.zip((ds, ds.skip(1)))
-            ds = ds_pairs.map(lambda xyz1, xyz2: maybe_concat_samples(xyz1, xyz2, args.concat))
+            ds = ds_pairs.map(lambda xy1, xy2: maybe_concat_samples(xy1, xy2, args.concat))
 
     ds = ds.map(
         lambda x, y: preprocess(x, y, args=args, augment=augment, max_source_length=args.max_source_length),

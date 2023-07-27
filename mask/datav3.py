@@ -35,8 +35,9 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
 def linear_decay(start_value, current_step, total_steps, end_value=0.):
     return start_value - (start_value - end_value) * (current_step / total_steps)
 
-def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob, current_step, total_steps):
+def apply_mask(sample, mask_prob, mask_token_id, random_token_prob, current_step, total_steps):
     mask_prob = linear_decay(mask_prob, current_step, total_steps)
+    landmarks, phrase = sample
     if mask_prob > 0.:
         masked_char_ids = tf.identity(phrase)
         mask_range_start = tf.constant(1, dtype=tf.int32)
@@ -307,8 +308,8 @@ def load_dataset(
     else:
         mask_prob = 0.
     total_mask_steps = int(args.total_steps * args.mask_ratio)
-    ds = ds.enumerate().map(lambda step, x, y: apply_mask(
-        x, y, mask_prob=mask_prob, mask_token_id=args.mask_token_id, random_token_prob=args.random_token_prob,
+    ds = ds.enumerate().map(lambda step, xy: apply_mask(
+        xy, mask_prob=mask_prob, mask_token_id=args.mask_token_id, random_token_prob=args.random_token_prob,
         current_step=step//args.batch_size, total_steps=total_mask_steps), tf.data.AUTOTUNE)
 
     if args.use_speed and args.use_acceleration:

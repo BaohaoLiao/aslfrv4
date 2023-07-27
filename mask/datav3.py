@@ -32,8 +32,12 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
     #    constant_values = pad_token_id)
     return landmarks, phrase
 
-def linear_decay(start_value, current_step, total_steps, end_value=0.):
-    return start_value - (start_value - end_value) * (current_step / total_steps)
+def linear_decay(max_value, current_step, total_steps, warmup_ratio=0.1):
+    warmup_steps = int(total_steps * warmup_ratio)
+    if current_step <= warmup_steps:
+        return current_step * max_value / warmup_steps
+    else:
+        return max_value - max_value * (current_step - warmup_steps) / (total_steps - warmup_steps)
 
 def apply_mask(sample, mask_prob, mask_token_id, random_token_prob, current_step, total_steps):
     mask_prob = tf.cast(linear_decay(mask_prob, current_step, total_steps), dtype=tf.float32)

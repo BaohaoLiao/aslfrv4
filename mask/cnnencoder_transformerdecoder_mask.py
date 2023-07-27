@@ -3,55 +3,15 @@ import numpy as np
 from metadata import PAD, XY_POINT_LANDMARKS
 
 
-def get_initializer(initializer_range: float = 0.02) -> tf.keras.initializers.TruncatedNormal:
-    return tf.keras.initializers.TruncatedNormal(stddev=initializer_range)
-
-def positional_encoding(length, depth):
-    depth = depth / 2
-    positions = np.arange(length)[:, np.newaxis]  # (seq, 1)
-    depths = np.arange(depth)[np.newaxis, :] / depth  # (1, depth)
-    angle_rates = 1 / (10000 ** depths)  # (1, depth)
-    angle_rads = positions * angle_rates  # (pos, depth)
-    pos_encoding = np.concatenate([np.sin(angle_rads), np.cos(angle_rads)], axis=-1)
-    return tf.cast(pos_encoding, dtype=tf.float32)
-
-def _expand_mask(mask: tf.Tensor, tgt_len: int = None):
-    """
-    Expands attention_mask from `[bsz, seq_len]` to `[bsz, tgt_seq_len, src_seq_len]`.
-    """
-    src_len = tf.shape(mask)[1]
-    tgt_len = tgt_len if tgt_len is not None else src_len
-    expanded_mask = tf.tile(mask[:, None, :], (1, tgt_len, 1))
-    return expanded_mask
-
-
 class LandmarkEmbedding(tf.keras.layers.Layer):
-    def __init__(self, d_model, max_source_length, dropout, learnable_position, **kwargs):
+    def __init__(self, d_model, **kwargs):
         super(LandmarkEmbedding, self).__init__(**kwargs)
         self.dense = tf.keras.layers.Dense(d_model, use_bias=False, name='proj')
         self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
-        self.learnable_position = learnable_position
-        if learnable_position:
-            self.position_emb = self.add_weight(
-                "pos_embeddings",
-                shape=[max_source_length, d_model],
-                initializer=get_initializer(),
-            )
-        else:
-            self.position_emb = positional_encoding(max_source_length, d_model)
-        self.dropout = tf.keras.layers.Dropout(dropout)
 
-    def call(self, x, training):
-        length = tf.shape(x)[1]
+    def call(self, x):
         x = self.dense(x)
-        if self.learnable_position:
-            position_ids = tf.expand_dims(tf.range(start=0, limit=length, delta=1), axis=0)
-            position_embs = tf.gather(params=self.position_emb, indices=position_ids)
-        else:
-            position_embs = self.position_emb[tf.newaxis, :length, :]
-        x = x + position_embs
         x = self.norm(x)
-        x = self.dropout(x, training=training)
         return x
 
 
@@ -211,16 +171,10 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
 
 
 class CNNEncoder(tf.keras.layers.Layer):
-    def __init__(self, num_layers, d_model, max_source_length, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim,
-                 emb_dropout, attn_dropout, hidden_dropout, activation, learnable_position, **kwargs):
+    def __init__(self, num_layers, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout,
+            hidden_dropout, activation, **kwargs):
         super(CNNEncoder, self).__init__(**kwargs)
-        self.embedding = LandmarkEmbedding(
-            d_model=d_model,
-            max_source_length=max_source_length,
-            dropout=emb_dropout,
-            learnable_position=learnable_position,
-            name="landmark_embedding")
-
+        self.embedding = LandmarkEmbedding(d_model, name="landmark_embedding")
         self.layers = [
             CNNEncoderLayer(
                 d_model=d_model,
@@ -241,6 +195,28 @@ class CNNEncoder(tf.keras.layers.Layer):
             x = layer(x, mask=mask, training=training)
         x = self.norm(x)
         return x
+
+
+def get_initializer(initializer_range: float = 0.02) -> tf.keras.initializers.TruncatedNormal:
+    return tf.keras.initializers.TruncatedNormal(stddev=initializer_range)
+
+def positional_encoding(length, depth):
+    depth = depth / 2
+    positions = np.arange(length)[:, np.newaxis]  # (seq, 1)
+    depths = np.arange(depth)[np.newaxis, :] / depth  # (1, depth)
+    angle_rates = 1 / (10000 ** depths)  # (1, depth)
+    angle_rads = positions * angle_rates  # (pos, depth)
+    pos_encoding = np.concatenate([np.sin(angle_rads), np.cos(angle_rads)], axis=-1)
+    return tf.cast(pos_encoding, dtype=tf.float32)
+
+def _expand_mask(mask: tf.Tensor, tgt_len: int = None):
+    """
+    Expands attention_mask from `[bsz, seq_len]` to `[bsz, tgt_seq_len, src_seq_len]`.
+    """
+    src_len = tf.shape(mask)[1]
+    tgt_len = tgt_len if tgt_len is not None else src_len
+    expanded_mask = tf.tile(mask[:, None, :], (1, tgt_len, 1))
+    return expanded_mask
 
 
 class TokenEmbedding(tf.keras.layers.Layer):
@@ -422,7 +398,7 @@ class LMHead(tf.keras.layers.Layer):
         return self.dense2(x)
 
 
-class CNNEncoderv2TransformerDecoder(tf.keras.Model):
+class CNNEncoderTransformerDecoder(tf.keras.Model):
     def __init__(
         self,
         num_encoder_layers: int,
@@ -446,23 +422,20 @@ class CNNEncoderv2TransformerDecoder(tf.keras.Model):
         learnable_position: bool,
         prenorm: bool,
         activation: str):
-        super(CNNEncoderv2TransformerDecoder, self).__init__()
+        super(CNNEncoderTransformerDecoder, self).__init__()
         self.vocab_size = vocab_size
         self.pad_token_id = pad_token_id
         self.encoder = CNNEncoder(
             num_layers=num_encoder_layers,
             d_model=encoder_hidden_dim,
-            max_source_length=max_source_length,
             kernel_size=encoder_kernel_size,
             dilation_rate=encoder_dilation_rate,
             num_heads=encoder_num_heads,
             mlp_dim=encoder_mlp_dim,
             conv_dim=encoder_conv_dim,
-            emb_dropout=emb_dropout,
             attn_dropout=attn_dropout,
             hidden_dropout=hidden_dropout,
             activation=activation,
-            learnable_position=learnable_position,
             name="encoder")
         self.decoder = TransformerDecoder(
             vocab_size=vocab_size,
@@ -581,5 +554,6 @@ class CNNEncoderv2TransformerDecoder(tf.keras.Model):
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
         return dec_input
+
 
 

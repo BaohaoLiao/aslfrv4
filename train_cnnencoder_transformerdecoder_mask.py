@@ -10,7 +10,7 @@ import tensorflow as tf
 from mask.datav2 import load_dataset
 from optimizer import LRInverseSqrtScheduler
 from display import DisplayOutputs
-from mask.cnnencoderv2_transformerdecoder_mask import CNNEncoderv2TransformerDecoder
+from mask.cnnencoder_transformerdecoder_mask import CNNEncoderTransformerDecoder
 
 
 logging.basicConfig(
@@ -166,8 +166,8 @@ def main():
         weight_decay=args.weight_decay,
     )
 
-    if args.model_arch == "cnnencoderv2_transformerdecoder":
-        model = CNNEncoderv2TransformerDecoder(
+    if args.model_arch == "cnnencoder_transformerdecoder":
+        model = CNNEncoderTransformerDecoder(
             num_encoder_layers=args.num_encoder_layers,
             encoder_hidden_dim=args.encoder_hidden_dim,
             encoder_mlp_dim=args.encoder_mlp_dim,

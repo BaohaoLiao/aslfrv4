@@ -274,10 +274,7 @@ def main():
         save_weights_only=True,
         save_freq=steps_per_epoch,
     )
-
     callbacks = [display_callback, model_checkpoint_callback]
-    if args.fold == "all":
-        callbacks = [model_checkpoint_callback]
 
     # Train
     _ = model.fit(

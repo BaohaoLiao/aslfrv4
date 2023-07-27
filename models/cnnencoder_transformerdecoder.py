@@ -672,14 +672,12 @@ class TFLiteModelv2(tf.Module):
         x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
         x = x[0]
 
-        """
         frame_length = tf.shape(x)[0]
         max_gen_length = frame_length // self.ratio + 1
-        if max_gen_length > self.max_gen_length:
-            max_gen_length = self.max_gen_length
-        if max_gen_length < 2:
-            max_gen_length = 2
-        """
+        #if max_gen_length > self.max_gen_length:
+        #    max_gen_length = self.max_gen_length
+        #if max_gen_length < 2:
+        #    max_gen_length = 2
 
         x = self.preprocess_layer(x)
         x = x[None]
@@ -703,6 +701,8 @@ class TFLiteModelv2(tf.Module):
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
         idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)
         x = x[1:idx] # replace pad token?
+        if len(x) > max_gen_length:
+            x = x[:max_gen_length]
         x = tf.one_hot(x, 59) # how about not in 59?
         return {'outputs': x}
 

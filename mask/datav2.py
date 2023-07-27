@@ -43,9 +43,9 @@ def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
         random_char_ids = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), minval=0,
                                             maxval=59, dtype=tf.int32)
         masked_char_ids[mask_range] = tf.where(random_replace, random_char_ids, masked_char_ids[mask_range])
-        return landmarks, masked_char_ids, phrase
+        return tf.identity(landmarks), masked_char_ids, tf.identity(phrase)
     else:
-        return landmarks, phrase, phrase
+        return tf.identity(landmarks), tf.identity(phrase), tf.identity(phrase)
 
 def filter_nans_tf(x):
     mask = tf.math.logical_not(tf.reduce_all(tf.math.is_nan(x), axis=[-2,-1]))

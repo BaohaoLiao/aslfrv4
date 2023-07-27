@@ -32,13 +32,11 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
     #    constant_values = pad_token_id)
     return landmarks, phrase
 
-def linear_decay(start_value, current_step, total_steps, batch_size, end_value=0.):
-    current_step = current_step // batch_size
-    total_steps = total_steps // batch_size
+def linear_decay(start_value, current_step, total_steps, end_value=0.):
     return start_value - (start_value - end_value) * (current_step / total_steps)
 
-def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob, current_step, total_steps, batch_size):
-    mask_prob = linear_decay(mask_prob, current_step, total_steps, batch_size)
+def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob, current_step, total_steps):
+    mask_prob = linear_decay(mask_prob, current_step, total_steps)
     if mask_prob > 0.:
         masked_char_ids = tf.identity(phrase)
         mask_range_start = tf.constant(1, dtype=tf.int32)
@@ -308,10 +306,10 @@ def load_dataset(
         mask_prob = args.mask_prob
     else:
         mask_prob = 0.
-    total_mask_steps = int(args.num_train * args.num_epoch * args.mask_ratio)
+    total_mask_steps = int(args.total_steps * args.mask_ratio)
     ds = ds.enumerate().map(lambda step, x, y: apply_mask(
         x, y, mask_prob=mask_prob, mask_token_id=args.mask_token_id, random_token_prob=args.random_token_prob,
-        current_step=step, total_steps=total_mask_steps, batch_size=args.batch_size), tf.data.AUTOTUNE)
+        current_step=step//args.batch_size, total_steps=total_mask_steps), tf.data.AUTOTUNE)
 
     if args.use_speed and args.use_acceleration:
         x_padded_shape = [args.max_source_length, 3 * len(XY_POINT_LANDMARKS)]

@@ -114,6 +114,18 @@ def main():
     char_to_num[args.mask_token] = args.mask_token_id
     num_to_char = {j: i for i, j in char_to_num.items()}
 
+    # TODO: automatically count
+    if args.fold != "all":
+        num_train = int(64329 * 9. / args.num_folds)
+    else:
+        num_train = 64329
+    num_valid = int(64329 * 1. / args.num_folds)
+    steps_per_epoch = num_train // args.batch_size
+    total_steps = num_train * args.num_epochs // args.batch_size
+    args.total_steps = total_steps
+
+
+
     train_tffiles = []
     valid_tffiles = []
     if args.fold == "all":
@@ -147,16 +159,6 @@ def main():
         shuffle=False,
         drop_remainder=False
     )
-
-    #TODO: automatically count
-    if args.fold != "all":
-        num_train = int(64329 * 9. / args.num_folds)
-    else:
-        num_train = 64329
-    args.num_train = num_train
-    num_valid = int(64329 * 1. / args.num_folds)
-    steps_per_epoch = num_train // args.batch_size
-    total_steps = num_train * args.num_epochs // args.batch_size
 
     learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
     optimizer = tf.keras.optimizers.AdamW(

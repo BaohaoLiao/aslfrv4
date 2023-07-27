@@ -132,7 +132,7 @@ def main():
         char_to_num=char_to_num,
         augment=True,
         repeat=True,
-        shuffle=3000,
+        shuffle=30000,
         drop_remainder=True
     )
     val_dataset = load_dataset(

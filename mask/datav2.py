@@ -35,14 +35,14 @@ def encode(landmarks, phrase, table, max_target_length, start_token="S", end_tok
 def apply_mask(landmarks, phrase, mask_prob, mask_token_id, random_token_prob):
     if mask_prob > 0.:
         masked_char_ids = tf.identity(phrase)
-        mask_range = slice(1, tf.shape(masked_char_ids)[0] - 1)
+        mask_range_start = tf.constant(1, dtype=tf.int32)
+        mask_range_end = tf.shape(masked_char_ids)[0] - 1
+        mask_range = tf.range(mask_range_start, mask_range_end)
         mask = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), dtype=tf.float32) < mask_prob
-        masked_char_ids = tf.tensor_scatter_nd_update(
-            masked_char_ids,
-            tf.expand_dims(tf.boolean_mask(mask_range, mask), axis=1),
-            tf.fill(tf.shape(masked_char_ids[mask_range]), mask_token_id))
-
-
+        mask_indices = tf.boolean_mask(mask_range, mask)
+        mask_values = tf.fill(tf.shape(mask_indices), mask_token_id)
+        masked_char_ids = tf.tensor_scatter_nd_update(masked_char_ids, tf.expand_dims(mask_indices, axis=1),
+                                                      mask_values)
         random_replace = mask & (tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]),
                                                    dtype=tf.float32) < random_token_prob)
         random_char_ids = tf.random.uniform(shape=tf.shape(masked_char_ids[mask_range]), minval=0,

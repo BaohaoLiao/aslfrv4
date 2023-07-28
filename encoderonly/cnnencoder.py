@@ -312,7 +312,6 @@ class CNN(tf.keras.Model):
         lengths = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
         logits = self(source, training=False)
         preds = tf.argmax(logits, axis=-1, output_type=tf.int32)
-        tf.print(preds, lengths)
         return preds, lengths
 
 

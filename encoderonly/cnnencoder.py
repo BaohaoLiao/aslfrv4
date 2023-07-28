@@ -310,7 +310,7 @@ class CNN(tf.keras.Model):
     def batch_generate(self, source):
         logits_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
         length = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
-        logits = self(source, training=True)
+        logits = self(source, training=False)
         preds = tf.argmax(logits, axis=-1, output_type=tf.int32)
         return preds, length
 

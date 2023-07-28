@@ -255,7 +255,7 @@ def load_dataset(
 
     ds = tf.data.TFRecordDataset(tfrecords, num_parallel_reads=tf.data.AUTOTUNE)
     ds = ds.map(decode_fn, tf.data.AUTOTUNE)
-    ds = ds.map(lambda x, y: encode(x, y, table, args.max_target_length), tf.data.AUTOTUNE)
+    ds = ds.map(lambda x, y: encode(x, y, table), tf.data.AUTOTUNE)
 
     if shuffle:
         ds = ds.shuffle(shuffle, reshuffle_each_iteration=True)

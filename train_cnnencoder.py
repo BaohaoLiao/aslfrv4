@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument("--encoder_kernel_size", type=int, default=17)
     parser.add_argument("--encoder_dilation_rate", type=int, default=1)
     parser.add_argument("--max_source_length", type=int, default=128)
+    parser.add_argument("--max_target_length", type=int, default=34)
     parser.add_argument("--vocab_size", type=int, default=60)
     parser.add_argument("--emb_dropout", type=float, default=0.)
     parser.add_argument("--attn_dropout", type=float, default=0.2)

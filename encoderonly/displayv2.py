@@ -17,10 +17,10 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
             source = batch[0]
             target = batch[1].numpy()
             batch_size = tf.shape(source)[0]
-            preds, length = self.model.batch_generate(source)
+            preds, lengths = self.model.batch_generate(source)
             for i in range(batch_size):
                 target_text = "".join([self.idx_to_char[_] for _ in target[i, :]])
-                pred_ids = self.decode(preds[i][:length[i]])
+                pred_ids = self.decode(preds[i][:lengths[i]])
                 pred_ids = pred_ids.numpy()
                 prediction = ""
                 for idx in pred_ids:

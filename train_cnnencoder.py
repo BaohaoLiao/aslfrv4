@@ -131,7 +131,7 @@ def main():
 
     #TODO: automatically count
     if args.fold != "all":
-        num_train = int(64329 * 9. / args.num_folds)
+        num_train = 6432 #int(64329 * 9. / args.num_folds)
     else:
         num_train = 64329
     num_valid = int(64329 * 1. / args.num_folds)

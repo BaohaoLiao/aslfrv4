@@ -192,7 +192,7 @@ def main():
 
     # Train
     _ = model.fit(
-        train_dataset,
+        val_dataset,
         verbose=args.verbose,
         validation_data=val_dataset,
         epochs=args.num_epochs,

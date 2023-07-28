@@ -17,10 +17,11 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
             source = batch[0]
             target = batch[1].numpy()
             batch_size = tf.shape(source)[0]
-            preds = self.model(source, training=False)
+            preds, length = self.model.batch_generate(source, training=False)
             for i in range(batch_size):
                 target_text = "".join([self.idx_to_char[_] for _ in target[i, :]])
-                pred_ids = self.decode(preds[i])
+                pred_ids = self.decode(preds[i][:length[i]])
+                pred_ids = pred_ids.numpy()
                 prediction = ""
                 for idx in pred_ids:
                     prediction += self.idx_to_char[idx]
@@ -43,8 +44,7 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
         global_score = (global_length - global_dist) / global_length
         logging.info(f"Epoch{epoch + 1}: validation score, local: {score}, global: {global_score}")
 
-    def decode(self, pred):
-        x = tf.argmax(pred, axis=1)
+    def decode(self, x):
         diff = tf.not_equal(x[:-1], x[1:])
         adjacent_indices = tf.where(diff)[:, 0]
         x = tf.gather(x, adjacent_indices)

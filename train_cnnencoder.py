@@ -7,8 +7,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-from data import load_dataset
 from optimizer import LRInverseSqrtScheduler
+from encoderonly.data_encoderonly import load_dataset
 from encoderonly.displayv2 import DisplayOutputs
 from encoderonly.cnnencoder import CNN
 

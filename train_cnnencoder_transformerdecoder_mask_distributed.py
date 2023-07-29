@@ -83,6 +83,7 @@ def parse_args():
     parser.add_argument("--concat", type=float, default=0.)
     parser.add_argument("--mask_prob", type=float, default=0.)
     parser.add_argument("--random_token_prob", type=float, default=0.)
+    parser.add_argument("--resume", type=str, default=None)
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)
@@ -200,6 +201,12 @@ def main():
                 label_smoothing=args.label_smoothing,
                 reduction=tf.keras.losses.Reduction.SUM),
         )
+        if args.resume is not None:
+            logging.info(f"Resume from {args.resume}")
+            if train_dataset is not None:
+                model.evaluate(train_dataset.take(steps_per_epoch))
+            if val_dataset is not None:
+                model.evaluate(val_dataset)
 
     display_callback = DisplayOutputs(
         model,

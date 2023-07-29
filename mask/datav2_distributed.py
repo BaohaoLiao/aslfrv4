@@ -305,7 +305,7 @@ def load_dataset(
         tf.data.AUTOTUNE)
 
     if repeat:
-        ds = ds.repeat(args.num_epochs)
+        ds = ds.repeat()
 
     if args.use_speed and args.use_acceleration:
         x_padded_shape = [args.max_source_length, 3 * len(XY_POINT_LANDMARKS)]

@@ -214,7 +214,7 @@ def main():
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=os.path.join(args.output_dir, "checkpoint_epoch{epoch:03d}.h5"),
         save_weights_only=True,
-        save_freq="epoch",
+        save_freq=steps_per_epoch,
     )
     callbacks = [display_callback, model_checkpoint_callback]
 
@@ -224,8 +224,8 @@ def main():
         verbose=args.verbose,
         validation_data=val_dataset,
         epochs=args.num_epochs,
-        #steps_per_epoch=steps_per_epoch,
-        #validation_steps=-(num_valid // -args.batch_size),
+        steps_per_epoch=steps_per_epoch,
+        validation_steps=-(num_valid // -args.batch_size),
         callbacks=callbacks)
     logging.info(model.summary())
 

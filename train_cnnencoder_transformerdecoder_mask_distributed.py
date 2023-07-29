@@ -11,6 +11,7 @@ from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
 from display import DisplayOutputs
 from mask.cnnencoder_transformerdecoder_mask import CNNEncoderTransformerDecoder
+from metadata import XY_POINT_LANDMARKS
 
 
 logging.basicConfig(
@@ -185,6 +186,13 @@ def main():
             learnable_position=args.learnable_position,
             prenorm=args.prenorm,
             activation=args.activation)
+        virtual_intput = (
+            np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
+            np.zeros((1, args.max_target_length), dtype=np.int32)
+        )
+        logging.info(f"{tf.shape(model(virtual_intput))}")
+        logging.info(model.summary())
+
         learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
         optimizer = tf.keras.optimizers.AdamW(
             learning_rate=learning_rate,
@@ -208,7 +216,6 @@ def main():
             if val_dataset is not None:
                 model.evaluate(val_dataset)
 
-    logging.info(model.summary())
     display_callback = DisplayOutputs(
         model,
         val_dataset,

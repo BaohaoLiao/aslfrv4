@@ -17,38 +17,39 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
         self.max_target_length = max_target_length
 
     def on_epoch_end(self, epoch, logs=None):
-        logging.info(f' learning rate: {self.model.optimizer.learning_rate.numpy():.5e}')
-        lv_distances = []
-        for batch in self.batches:
-            source = batch[0]
-            target = batch[1].numpy()
-            batch_size = tf.shape(source)[0]
-            preds = self.model.batch_generate(source, self.start_token_id, self.max_target_length)
-            preds = preds.numpy()
-            for i in range(batch_size):
-                target_text = "".join([self.idx_to_char[_] for _ in target[i, :]])
-                prediction = ""
-                for idx in preds[i, :]:
-                    prediction += self.idx_to_char[idx]
-                    if idx == self.end_token_id:
-                        break
-                target_text = target_text.replace(self.pad_token, '').\
-                                  replace(self.start_token, '').replace(self.end_token, '')
-                prediction = prediction.replace(self.pad_token, ''). \
-                                  replace(self.start_token, '').replace(self.end_token, '')
-                lv_distances.append({
-                    "target": target_text,
-                    "prediction": prediction,
-                    "lv": Lev_distance(target_text, prediction)
-                })
-        score = 0
-        global_length, global_dist = 0, 0
-        for i, lv in enumerate(lv_distances):
-            score += (len(lv["target"]) - lv["lv"]) / len(lv["target"])
-            global_length += len(lv["target"])
-            global_dist += lv["lv"]
-            if i <= 10:
-                logging.info(lv)
-        score /= len(lv_distances)
-        global_score = (global_length - global_dist) / global_length
-        logging.info(f"Epoch{epoch + 1}: validation score, local: {score}, global: {global_score}")
+        logging.info(f'Learning rate: {self.model.optimizer.learning_rate.numpy():.5e}')
+        if epoch > 100:
+            lv_distances = []
+            for batch in self.batches:
+                source = batch[0]
+                target = batch[1].numpy()
+                batch_size = tf.shape(source)[0]
+                preds = self.model.batch_generate(source, self.start_token_id, self.max_target_length)
+                preds = preds.numpy()
+                for i in range(batch_size):
+                    target_text = "".join([self.idx_to_char[_] for _ in target[i, :]])
+                    prediction = ""
+                    for idx in preds[i, :]:
+                        prediction += self.idx_to_char[idx]
+                        if idx == self.end_token_id:
+                            break
+                    target_text = target_text.replace(self.pad_token, '').\
+                                      replace(self.start_token, '').replace(self.end_token, '')
+                    prediction = prediction.replace(self.pad_token, ''). \
+                                      replace(self.start_token, '').replace(self.end_token, '')
+                    lv_distances.append({
+                        "target": target_text,
+                        "prediction": prediction,
+                        "lv": Lev_distance(target_text, prediction)
+                    })
+            score = 0
+            global_length, global_dist = 0, 0
+            for i, lv in enumerate(lv_distances):
+                score += (len(lv["target"]) - lv["lv"]) / len(lv["target"])
+                global_length += len(lv["target"])
+                global_dist += lv["lv"]
+                if i <= 10:
+                    logging.info(lv)
+            score /= len(lv_distances)
+            global_score = (global_length - global_dist) / global_length
+            logging.info(f"Epoch{epoch + 1}: validation score, local: {score}, global: {global_score}")

@@ -208,6 +208,7 @@ def main():
             if val_dataset is not None:
                 model.evaluate(val_dataset)
 
+    logging.info(model.summary())
     display_callback = DisplayOutputs(
         model,
         val_dataset,
@@ -234,7 +235,6 @@ def main():
         steps_per_epoch=steps_per_epoch,
         validation_steps=-(num_valid // -args.batch_size),
         callbacks=callbacks)
-    logging.info(model.summary())
 
 
 if __name__ == "__main__":

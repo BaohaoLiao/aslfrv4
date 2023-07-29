@@ -161,16 +161,6 @@ def main():
     steps_per_epoch = num_train // args.batch_size
     total_steps = num_train * args.num_epochs // args.batch_size
 
-    learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
-    optimizer = tf.keras.optimizers.AdamW(
-        learning_rate=learning_rate,
-        beta_1=0.9,
-        beta_2=0.98,
-        epsilon=1e-9,
-        clipnorm=args.max_norm,
-        weight_decay=args.weight_decay,
-    )
-
     with strategy.scope():
         model = CNNEncoderTransformerDecoder(
             num_encoder_layers=args.num_encoder_layers,
@@ -194,6 +184,15 @@ def main():
             learnable_position=args.learnable_position,
             prenorm=args.prenorm,
             activation=args.activation)
+        learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
+        optimizer = tf.keras.optimizers.AdamW(
+            learning_rate=learning_rate,
+            beta_1=0.9,
+            beta_2=0.98,
+            epsilon=1e-9,
+            clipnorm=args.max_norm,
+            weight_decay=args.weight_decay,
+        )
         model.compile(
             optimizer=optimizer,
             loss_fn=tf.keras.losses.CategoricalCrossentropy(

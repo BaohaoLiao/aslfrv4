@@ -98,7 +98,7 @@ def main():
     logging.info(args)
 
     devices = tf.config.experimental.list_physical_devices('GPU')
-    logging.info("GPUs available: ", len(devices))
+    logging.info(f"GPUs available: {len(devices)}")
     strategy = tf.distribute.MirroredStrategy()
     logging.info("Number of devices: {}".format(strategy.num_replicas_in_sync))
 
@@ -196,7 +196,10 @@ def main():
             activation=args.activation)
         model.compile(
             optimizer=optimizer,
-            loss_fn=tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=args.label_smoothing),
+            loss_fn=tf.keras.losses.CategoricalCrossentropy(
+                from_logits=True,
+                label_smoothing=args.label_smoothing,
+                reduction=tf.keras.losses.Reduction.SUM),
         )
 
     display_callback = DisplayOutputs(

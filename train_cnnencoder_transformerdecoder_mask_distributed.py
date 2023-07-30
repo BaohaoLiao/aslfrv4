@@ -159,6 +159,8 @@ def main():
         num_train = int(64329 * 9. / args.num_folds)
     else:
         num_train = 64329
+        if args.num_folds == 20:
+            num_train += 50927
     num_valid = int(64329 * 1. / args.num_folds)
     steps_per_epoch = num_train // args.batch_size
     total_steps = num_train * args.num_epochs // args.batch_size

@@ -516,7 +516,7 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             "top1_acc": self.top1_acc_metric.result(),
             "top5_acc": self.top5_acc_metric.result()}
 
-    def awp_train_step(self, batch):
+    def train_step(self, batch):
         source = batch[0]
         masked_target = batch[1]
         target = batch[2]
@@ -557,9 +557,6 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             "loss": self.loss_metric.result(),
             "top1_acc": self.top1_acc_metric.result(),
             "top5_acc": self.top5_acc_metric.result()}
-
-    def train_step(self, batch):
-        return self.awp_train_step(batch)
 
     def test_step(self, batch):
         source = batch[0]

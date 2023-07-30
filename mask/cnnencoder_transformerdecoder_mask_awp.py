@@ -492,48 +492,21 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
         super().compile(optimizer=optimizer)
         self.loss_fn = loss_fn
 
-    def train_step(self, batch):
+    def vanilla_train_step(self, batch):
         source = batch[0]
         masked_target = batch[1]
         target = batch[2]
 
         dec_input = masked_target[:, :-1]
         dec_target = target[:, 1:]
-        if self._train_counter < 10:
-            with tf.GradientTape() as tape:
-                preds = self([source, dec_input], training=True)
-                one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
-                mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
-                loss = self.loss_fn(one_hot, preds, sample_weight=mask)
-            trainable_vars = self.trainable_variables
-            gradients = tape.gradient(loss, trainable_vars)
-            self.optimizer.apply_gradients(zip(gradients, trainable_vars))
-        else:
-            tf.print(self._train_counter)
-            with tf.GradientTape() as tape:
-                preds = self([source, dec_input], training=True)
-                one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
-                mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
-                loss = self.loss_fn(one_hot, preds, sample_weight=mask)
-            params = self.trainable_variables
-            params_gradients = tape.gradient(loss, self.trainable_variables)
-            for i in range(len(params_gradients)):
-                grad = tf.zeros_like(params[i]) + params_gradients[i]
-                delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
-                self.trainable_variables[i].assign_add(delta)
-            with tf.GradientTape() as tape2:
-                preds = self([source, dec_input], training=True)
-                new_loss = self.loss_fn(one_hot, preds, sample_weight=mask)
-                if hasattr(self.optimizer, 'get_scaled_loss'):
-                    new_loss = self.optimizer.get_scaled_loss(new_loss)
-            gradients = tape2.gradient(new_loss, self.trainable_variables)
-            if hasattr(self.optimizer, 'get_unscaled_gradients'):
-                gradients = self.optimizer.get_unscaled_gradients(gradients)
-            for i in range(len(params_gradients)):
-                grad = tf.zeros_like(params[i]) + params_gradients[i]
-                delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
-                self.trainable_variables[i].assign_sub(delta)
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        with tf.GradientTape() as tape:
+            preds = self([source, dec_input], training=True)
+            one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
+            mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
+            loss = self.loss_fn(one_hot, preds, sample_weight=mask)
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
 
         self.loss_metric.update_state(loss)
         self.top1_acc_metric.update_state(one_hot, preds, sample_weight=mask)
@@ -542,6 +515,54 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             "loss": self.loss_metric.result(),
             "top1_acc": self.top1_acc_metric.result(),
             "top5_acc": self.top5_acc_metric.result()}
+
+    def awp_train_step(self, batch):
+        source = batch[0]
+        masked_target = batch[1]
+        target = batch[2]
+
+        dec_input = masked_target[:, :-1]
+        dec_target = target[:, 1:]
+
+        tf.print(self._train_counter)
+        with tf.GradientTape() as tape:
+            preds = self([source, dec_input], training=True)
+            one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
+            mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
+            loss = self.loss_fn(one_hot, preds, sample_weight=mask)
+        params = self.trainable_variables
+        params_gradients = tape.gradient(loss, self.trainable_variables)
+        for i in range(len(params_gradients)):
+            grad = tf.zeros_like(params[i]) + params_gradients[i]
+            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
+            self.trainable_variables[i].assign_add(delta)
+        with tf.GradientTape() as tape2:
+            preds = self([source, dec_input], training=True)
+            new_loss = self.loss_fn(one_hot, preds, sample_weight=mask)
+            if hasattr(self.optimizer, 'get_scaled_loss'):
+                new_loss = self.optimizer.get_scaled_loss(new_loss)
+        gradients = tape2.gradient(new_loss, self.trainable_variables)
+        if hasattr(self.optimizer, 'get_unscaled_gradients'):
+            gradients = self.optimizer.get_unscaled_gradients(gradients)
+        for i in range(len(params_gradients)):
+            grad = tf.zeros_like(params[i]) + params_gradients[i]
+            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
+            self.trainable_variables[i].assign_sub(delta)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+
+        self.loss_metric.update_state(loss)
+        self.top1_acc_metric.update_state(one_hot, preds, sample_weight=mask)
+        self.top5_acc_metric.update_state(one_hot, preds, sample_weight=mask)
+        return {
+            "loss": self.loss_metric.result(),
+            "top1_acc": self.top1_acc_metric.result(),
+            "top5_acc": self.top5_acc_metric.result()}
+
+    def train_step(self, batch):
+        return tf.cond(
+            self._train_counter < 10,
+            lambda: self.vanilla_train_step(batch),
+            lambda: self.awp_train_step(batch))
 
     def test_step(self, batch):
         source = batch[0]

@@ -200,7 +200,7 @@ def main():
 
         if args.awp:
             awp_step = 15 * steps_per_epoch
-            model = AWP(model.inputs, model.output, delta=0.2, eps=0., start_step=awp_step)
+            model = AWP(model.inputs, model.outputs, delta=0.2, eps=0., start_step=awp_step)
 
         learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
         optimizer = tf.keras.optimizers.AdamW(

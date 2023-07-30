@@ -202,13 +202,15 @@ def main():
             clipnorm=args.max_norm,
             weight_decay=args.weight_decay,
         )
-        model.compile(
-            optimizer=optimizer,
-            loss_fn=tf.keras.losses.CategoricalCrossentropy(
-                from_logits=True,
-                label_smoothing=args.label_smoothing,
-                reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
-        )
+        loss_object = tf.keras.losses.CategoricalCrossentropy(
+            from_logits=True,
+            label_smoothing=args.label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE)
+        def loss_fn(labels, predictions, sample_weight=None):
+            per_example_loss = loss_object(labels, predictions, sample_weight=sample_weight)
+            loss = tf.nn.compute_average_loss(per_example_loss, global_batch_size=args.batch_size)
+            return loss
+        model.compile(optimizer=optimizer, loss_fn=loss_fn)
         if args.resume is not None:
             logging.info(f"Resume from {args.resume}")
             if train_dataset is not None:

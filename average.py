@@ -71,3 +71,7 @@ def main():
     model.set_weights(averaged_weights)
     model.save_weights(os.path.join(args.output_dir, "average.h5"))
 
+
+if __name__ == "__main__":
+    main()
+

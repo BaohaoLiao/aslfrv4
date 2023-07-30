@@ -215,6 +215,7 @@ def main():
         model.compile(optimizer=optimizer, loss_fn=loss_fn)
         if args.resume is not None:
             logging.info(f"Resume from {args.resume}")
+            model.load_weights(args.resume)
             if train_dataset is not None:
                 model.evaluate(train_dataset.take(steps_per_epoch))
             if val_dataset is not None:

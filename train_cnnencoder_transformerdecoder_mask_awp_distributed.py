@@ -75,7 +75,6 @@ def parse_args():
     parser.add_argument("--label_smoothing", type=int, default=0.1)
     parser.add_argument("--verbose", type=int, default=2)
     parser.add_argument("--seed", type=int, default=3407)
-    parser.add_argument("--awp", action="store_true")
     # Data augmentation
     parser.add_argument("--flip", type=float, default=0.)
     parser.add_argument("--resample", type=float, default=0.)
@@ -197,10 +196,6 @@ def main():
         )
         logging.info(f"{tf.shape(model(virtual_intput))}")
         logging.info(model.summary())
-
-        if args.awp:
-            awp_step = 15 * steps_per_epoch
-            model = AWP(model.inputs, model.outputs, delta=0.2, eps=0., start_step=awp_step)
 
         learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
         optimizer = tf.keras.optimizers.AdamW(

@@ -507,6 +507,7 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             gradients = tape.gradient(loss, trainable_vars)
             self.optimizer.apply_gradients(zip(gradients, trainable_vars))
         else:
+            tf.print(self._train_counter)
             with tf.GradientTape() as tape:
                 preds = self([source, dec_input], training=True)
                 one_hot = tf.one_hot(dec_target, depth=self.vocab_size)

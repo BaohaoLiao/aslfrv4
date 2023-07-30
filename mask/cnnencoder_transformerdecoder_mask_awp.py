@@ -524,7 +524,6 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
         dec_input = masked_target[:, :-1]
         dec_target = target[:, 1:]
 
-        tf.print(self._train_counter)
         with tf.GradientTape() as tape:
             preds = self([source, dec_input], training=True)
             one_hot = tf.one_hot(dec_target, depth=self.vocab_size)

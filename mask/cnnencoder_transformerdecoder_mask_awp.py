@@ -494,8 +494,10 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
 
     def train_step(self, batch):
         source = batch[0]
-        target = batch[1]
-        dec_input = target[:, :-1]
+        masked_target = batch[1]
+        target = batch[2]
+
+        dec_input = masked_target[:, :-1]
         dec_target = target[:, 1:]
         if self._train_counter < 10:
             with tf.GradientTape() as tape:
@@ -543,7 +545,7 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
 
     def test_step(self, batch):
         source = batch[0]
-        target = batch[1]
+        target = batch[2]
         dec_input = target[:, :-1]
         dec_target = target[:, 1:]
         preds = self([source, dec_input], training=False)
@@ -572,31 +574,11 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
                 encoder_out=encoder_out,
                 encoder_attention_mask=encoder_attention_mask,
                 training=False)
-            logits = self.lm_head(dec_output)
+            logits = self.lm_head(dec_output)[:, :, :60]
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
         return dec_input
 
-    def efficient_generate(self, source, start_token_id, end_token_id, max_gen_length):
-        batch_size = tf.shape(source)[0]
-        dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * start_token_id
-        encoder_attention_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
-        encoder_out = self.encoder(source, mask=encoder_attention_mask, training=False)
-        if self.encoder_proj is not None:
-            encoder_out = self.encoder_proj(encoder_out)
 
-        for _ in tf.range(max_gen_length - 1):
-            tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
-            dec_output = self.decoder(
-                input_ids=dec_input,
-                encoder_out=encoder_out,
-                encoder_attention_mask=encoder_attention_mask,
-                training=False)
-            logits = self.lm_head(dec_output)
-            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
-            last_logit = logits[:, -1][..., tf.newaxis]
-            dec_input = tf.concat([dec_input, last_logit], axis=-1)
-            if (last_logit == end_token_id):
-                break
-        return dec_input
+

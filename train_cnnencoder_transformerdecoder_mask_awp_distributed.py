@@ -10,10 +10,8 @@ import tensorflow as tf
 from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
 from display import DisplayOutputs
-from mask.cnnencoder_transformerdecoder_mask import CNNEncoderTransformerDecoder
+from mask.cnnencoder_transformerdecoder_mask_awp import CNNEncoderTransformerDecoder
 from metadata import XY_POINT_LANDMARKS
-
-from tf_utils.learners import AWP
 
 
 logging.basicConfig(

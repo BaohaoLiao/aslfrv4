@@ -207,7 +207,7 @@ def main():
             loss_fn=tf.keras.losses.CategoricalCrossentropy(
                 from_logits=True,
                 label_smoothing=args.label_smoothing,
-                reduction=tf.keras.losses.Reduction.SUM),
+                reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
         )
         if args.resume is not None:
             logging.info(f"Resume from {args.resume}")

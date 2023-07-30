@@ -559,10 +559,7 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             "top5_acc": self.top5_acc_metric.result()}
 
     def train_step(self, batch):
-        return tf.cond(
-            self._train_counter < 10,
-            lambda batch: self.vanilla_train_step(batch),
-            lambda batch: self.awp_train_step(batch))
+        return self.awp_train_step(batch)
 
     def test_step(self, batch):
         source = batch[0]

@@ -7,6 +7,9 @@ import logging
 import numpy as np
 import tensorflow as tf
 
+import tensorflow_addons as tfa
+from tf_utils.schedules import OneCycleLR, ListedLR
+
 from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
 from display import DisplayOutputs
@@ -73,6 +76,7 @@ def parse_args():
     parser.add_argument("--label_smoothing", type=int, default=0.1)
     parser.add_argument("--verbose", type=int, default=2)
     parser.add_argument("--seed", type=int, default=3407)
+    parser.add_argument("--lookahead", action="store_true")
     # Data augmentation
     parser.add_argument("--flip", type=float, default=0.)
     parser.add_argument("--resample", type=float, default=0.)
@@ -195,15 +199,42 @@ def main():
         logging.info(f"{tf.shape(model(virtual_intput))}")
         logging.info(model.summary())
 
-        learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
-        optimizer = tf.keras.optimizers.AdamW(
-            learning_rate=learning_rate,
-            beta_1=0.9,
-            beta_2=0.98,
-            epsilon=1e-9,
-            clipnorm=args.max_norm,
-            weight_decay=args.weight_decay,
-        )
+        if args.lookahead:
+            schedule = OneCycleLR(
+                args.lr,
+                args.num_epochs,
+                warmup_epochs=args.num_epoch * args.warmup_ratio,
+                steps_per_epoch=steps_per_epoch,
+                resume_epoch=0.,
+                decay_epochs=args.num_epochs,
+                lr_min=1e-6,
+                decay_type="cosine",
+                warmup_type='linear')
+            decay_schedule = OneCycleLR(
+                args.lr * args.weight_decay,
+                args.num_epochs,
+                warmup_epochs=args.num_epoch * args.warmup_ratio,
+                steps_per_epoch=steps_per_epoch,
+                resume_epoch=0.,
+                decay_epochs=args.num_epochs,
+                lr_min=1e-6 * args.weight_decay,
+                decay_type="cosine",
+                warmup_type='linear')
+            optimizer = tfa.optimizers.RectifiedAdam(
+                learning_rate=schedule,
+                weight_decay=decay_schedule,
+                sma_threshold=4)  # , clipvalue=1.)
+            optimizer = tfa.optimizers.Lookahead(optimizer, sync_period=5)
+        else:
+            learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
+            optimizer = tf.keras.optimizers.AdamW(
+                learning_rate=learning_rate,
+                beta_1=0.9,
+                beta_2=0.98,
+                epsilon=1e-9,
+                clipnorm=args.max_norm,
+                weight_decay=args.weight_decay,
+            )
         loss_object = tf.keras.losses.CategoricalCrossentropy(
             from_logits=True,
             label_smoothing=args.label_smoothing,

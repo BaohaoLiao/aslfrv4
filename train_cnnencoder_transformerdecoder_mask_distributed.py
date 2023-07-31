@@ -255,7 +255,7 @@ def main():
         pad_token=args.pad_token,
         start_token=args.start_token,
         end_token=args.end_token,
-        max_target_length=args.max_target_length)
+        max_target_length=args.max_gen_length)
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=os.path.join(args.output_dir, "checkpoint_epoch{epoch:03d}.h5"),
         save_weights_only=True,

@@ -246,7 +246,7 @@ def main():
             if val_dataset is not None:
                 model.evaluate(val_dataset)
 
-    display_callback = DisplayOutputsv2(
+    display_callback = DisplayOutputs(
         model,
         val_dataset,
         num_to_char,

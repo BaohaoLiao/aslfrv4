@@ -20,50 +20,6 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
-class PreprocessLayer(tf.keras.layers.Layer):
-    def __init__(self, max_source_length, **kwargs):
-        super().__init__(**kwargs)
-        self.max_source_length = max_source_length
-
-    @tf.function(input_signature=(tf.TensorSpec(shape=[None, len(XY_POINT_LANDMARKS)], dtype=tf.float32),), )
-    def call(self, inputs):
-        n_frames = tf.shape(inputs)[0]
-        frame_dim = tf.shape(inputs)[1]
-        x = tf.transpose(tf.reshape(inputs, [n_frames, 2, frame_dim // 2]), perm=[0, 2, 1])  # B x C//2 x 2
-        x = filter_nans_tf(x)
-        x = x[None, ...]
-
-        mean = tf_nan_mean(tf.gather(x, [0], axis=2), axis=[1, 2], keepdims=True)
-        mean = tf.where(tf.math.is_nan(mean), tf.constant(0.5, x.dtype), mean)
-        std = tf_nan_std(x, center=mean, axis=[1, 2], keepdims=True)
-        x = (x - mean) / std
-
-        if n_frames > self.max_source_length:
-            #x = x[:, :self.max_source_length]
-            x = tf.image.resize(
-                x,
-                [self.max_source_length, frame_dim//2],
-                method=tf.image.ResizeMethod.BILINEAR,
-            )
-        if n_frames < 3:
-            x = tf.pad(x, [[0, 0], [0, 3-n_frames], [0, 0], [0, 0]])
-
-        length = tf.shape(x)[1]
-        dx = tf.cond(tf.shape(x)[1] > 1, lambda: tf.pad(x[:, 1:] - x[:, :-1], [[0, 0], [0, 1], [0, 0], [0, 0]]),
-                     lambda: tf.zeros_like(x))
-
-        dx2 = tf.cond(tf.shape(x)[1] > 2, lambda: tf.pad(x[:, 2:] - x[:, :-2], [[0, 0], [0, 2], [0, 0], [0, 0]]),
-                      lambda: tf.zeros_like(x))
-
-        x = tf.concat([
-            tf.reshape(x, (-1, length, frame_dim)),
-            tf.reshape(dx, (-1, length, frame_dim)),
-            tf.reshape(dx2, (-1, length, frame_dim)),
-        ], axis=-1)
-        x = tf.where(tf.math.is_nan(x), tf.constant(0., x.dtype), x)
-        #x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD) # TODO: remove
-        return x[0]
-
 
 class PreprocessLayerv2(tf.keras.layers.Layer):
     def __init__(self, max_source_length, **kwargs):
@@ -106,6 +62,7 @@ class PreprocessLayerv2(tf.keras.layers.Layer):
             tf.reshape(dx2, (-1, length, frame_dim)),
         ], axis=-1)
         x = tf.where(tf.math.is_nan(x), tf.constant(0., x.dtype), x)
+        x = tf.pad(x, [[0, 0], [0, self.max_source_length - length], [0, 0]], constant_values=PAD)  # TODO: remove
         return x[0]
 
 

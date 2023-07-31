@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
-from display import DisplayOutputs
+from display import DisplayOutputs, DisplayOutputsv2
 from mask.cnnencoder_transformerdecoder_mask import CNNEncoderTransformerDecoder
 from mask.conformerencoder_transformerdecoder_mask import ConformerEncoderTransformerDecoder
 from metadata import XY_POINT_LANDMARKS
@@ -246,7 +246,7 @@ def main():
             if val_dataset is not None:
                 model.evaluate(val_dataset)
 
-    display_callback = DisplayOutputs(
+    display_callback = DisplayOutputsv2(
         model,
         val_dataset,
         num_to_char,

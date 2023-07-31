@@ -203,7 +203,7 @@ def main():
             schedule = OneCycleLR(
                 args.lr,
                 args.num_epochs,
-                warmup_epochs=args.num_epoch * args.warmup_ratio,
+                warmup_epochs=args.num_epochs * args.warmup_ratio,
                 steps_per_epoch=steps_per_epoch,
                 resume_epoch=0.,
                 decay_epochs=args.num_epochs,
@@ -213,7 +213,7 @@ def main():
             decay_schedule = OneCycleLR(
                 args.lr * args.weight_decay,
                 args.num_epochs,
-                warmup_epochs=args.num_epoch * args.warmup_ratio,
+                warmup_epochs=args.num_epochs * args.warmup_ratio,
                 steps_per_epoch=steps_per_epoch,
                 resume_epoch=0.,
                 decay_epochs=args.num_epochs,

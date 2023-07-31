@@ -151,7 +151,7 @@ def main():
     logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayerv2(args.max_source_length)
-    tflitemodel = TFLiteModelv3(
+    tflitemodel = TFLiteModelv4(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)
 
 

@@ -263,7 +263,6 @@ def main():
     )
     callbacks = [display_callback, model_checkpoint_callback]
 
-    steps_per_epoch = 150
     # Train
     _ = model.fit(
         train_dataset,

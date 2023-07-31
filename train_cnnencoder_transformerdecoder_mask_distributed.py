@@ -167,7 +167,7 @@ def main():
     total_steps = num_train * args.num_epochs // args.batch_size
 
     with strategy.scope():
-        if args.arch == "cnnencoder_transformerdecoder":
+        if args.model_arch == "cnnencoder_transformerdecoder":
             model = CNNEncoderTransformerDecoder(
                 num_encoder_layers=args.num_encoder_layers,
                 encoder_hidden_dim=args.encoder_hidden_dim,
@@ -190,7 +190,7 @@ def main():
                 learnable_position=args.learnable_position,
                 prenorm=args.prenorm,
                 activation=args.activation)
-        elif args.arch == "conformerencoder_transformerdecoder":
+        elif args.model_arch == "conformerencoder_transformerdecoder":
             model = ConformerEncoderTransformerDecoder(
                 num_encoder_layers=args.num_encoder_layers,
                 encoder_hidden_dim=args.encoder_hidden_dim,

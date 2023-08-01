@@ -51,7 +51,7 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
                     lv_distances.append({
                         "target": target_text,
                         "prediction": prediction,
-                        "ctc_prediction": prediction,
+                        "ctc_prediction": ctc_prediction,
                         "lv": Lev_distance(target_text, prediction),
                         "ctc_lv": Lev_distance(target_text, ctc_prediction)
                     })

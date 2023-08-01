@@ -238,6 +238,7 @@ def main():
         model,
         val_dataset,
         num_to_char,
+        pad_token_id=args.pad_token_id,
         start_token_id=args.start_token_id,
         end_token_id=args.end_token_id,
         pad_token=args.pad_token,
@@ -251,6 +252,7 @@ def main():
     )
     callbacks = [display_callback, model_checkpoint_callback]
 
+    steps_per_epoch = 10
     # Train
     _ = model.fit(
         train_dataset,

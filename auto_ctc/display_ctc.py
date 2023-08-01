@@ -4,10 +4,11 @@ from Levenshtein import distance as Lev_distance
 
 class DisplayOutputs(tf.keras.callbacks.Callback):
     def __init__(
-            self, model, val_dataset, idx_to_token, start_token_id, end_token_id,  pad_token, start_token, end_token,
+            self, model, val_dataset, idx_to_token, pad_token_id, start_token_id, end_token_id,  pad_token, start_token, end_token,
             max_target_length):
         self.model = model
         self.batches = [batch for batch in val_dataset]
+        self.pad_token_id = pad_token_id
         self.start_token_id = start_token_id
         self.end_token_id = end_token_id
         self.idx_to_char = idx_to_token

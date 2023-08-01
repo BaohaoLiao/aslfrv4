@@ -18,7 +18,7 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         #logging.info(f'Learning rate: {self.model.optimizer.learning_rate.numpy():.5e}')
-        if epoch > 50:
+        if epoch > 0:
             lv_distances = []
             for batch in self.batches:
                 source = batch[0]

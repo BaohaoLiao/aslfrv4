@@ -7,7 +7,7 @@ import tensorflow as tf
 from datetime import datetime
 from Levenshtein import distance as Lev_distance
 
-from models.cnnencoder_transformerdecoder import TFLiteModelv3
+from models.cnnencoder_transformerdecoder import TFLiteModelv4
 from mask.conformerencoder_transformerdecoder_mask import ConformerEncoderTransformerDecoder
 from metadata import XY_POINT_LANDMARKS, PAD
 from data import filter_nans_tf, tf_nan_mean, tf_nan_std, decode_fn
@@ -109,7 +109,7 @@ def main():
     logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayerv2(args.max_source_length)
-    tflitemodel = TFLiteModelv3(
+    tflitemodel = TFLiteModelv4(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)
 
 

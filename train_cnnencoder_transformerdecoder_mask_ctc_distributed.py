@@ -192,7 +192,7 @@ def main():
             np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
             np.zeros((1, args.max_target_length), dtype=np.int32)
         )
-        logging.info(f"{tf.shape(model(virtual_intput))}")
+        logging.info(f"{tf.shape(model(virtual_intput)[1])}")
         logging.info(model.summary())
 
         learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))

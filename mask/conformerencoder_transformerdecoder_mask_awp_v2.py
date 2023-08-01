@@ -604,10 +604,7 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             "top5_acc": self.top5_acc_metric.result()}
 
     def train_step(self, batch):
-        if self._train_counter < 50:
-            return self.vanilla_train_step(batch)
-        else:
-            return self.awp_train_step(batch)
+        return tf.cond(self._train_counter < 50, self.vanilla_train_step(batch), self.awp_train_step(batch))
 
     def test_step(self, batch):
         source = batch[0]

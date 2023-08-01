@@ -824,8 +824,8 @@ class TFLiteModelv4(tf.Module):
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 
         x = dec_input[0]
-        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
-        idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)
+        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))
+        idx = tf.where(tf.math.less(idx, 1), tf.constant(self.max_gen_length, dtype=tf.int64), idx)
         x = x[1:idx] # replace pad token?
         x = tf.one_hot(x, 59) # how about not in 59?
         return {'outputs': x}

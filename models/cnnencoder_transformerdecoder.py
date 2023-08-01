@@ -674,10 +674,10 @@ class TFLiteModelv2(tf.Module):
 
         frame_length = tf.shape(x)[0]
         max_gen_length = frame_length // self.ratio + 1
-        #if max_gen_length > self.max_gen_length:
-        #    max_gen_length = self.max_gen_length
-        #if max_gen_length < 2:
-        #    max_gen_length = 2
+        if max_gen_length > self.max_gen_length:
+            max_gen_length = self.max_gen_length
+        if max_gen_length < 2:
+            max_gen_length = 2
 
         x = self.preprocess_layer(x)
         x = x[None]
@@ -685,25 +685,26 @@ class TFLiteModelv2(tf.Module):
         encoder_out, encoder_attention_mask = self.encoder(x)
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
-        for _ in tf.range(self.max_gen_length-1):
+        stop = tf.zeros((1,), dtype=tf.bool)
+        for _ in tf.range(max_gen_length - 1):
             tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
-            logits = self.decoder(
-                dec_input=dec_input,
-                encoder_out=encoder_out,
-                encoder_attention_mask=encoder_attention_mask)
-            #logits = tf.concat([logits[:, :, :59], logits[:, :, 61:]], axis=-1)
+            logits = tf.cond(
+                stop[0],
+                lambda: tf.one_hot(tf.cast(dec_input, tf.int32), 60),
+                lambda: self.decoder(
+                    dec_input=dec_input,
+                    encoder_out=encoder_out,
+                    encoder_attention_mask=encoder_attention_mask)[:, :, :60])
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
-            if (last_logit == self.end_token_id):
-                break
+            stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
+
         x = dec_input[0]
-        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))  #TODO: CHECK
-        idx = tf.where(tf.math.less(idx, 1), tf.constant(2, dtype=tf.int64), idx)
-        x = x[1:idx] # replace pad token?
-        if len(x) > max_gen_length:
-            x = x[:max_gen_length]
-        x = tf.one_hot(x, 59) # how about not in 59?
+        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))
+        idx = tf.where(tf.math.less(idx, 1), tf.constant(max_gen_length, dtype=tf.int64), idx)
+        x = x[1:idx]
+        x = tf.one_hot(x, 59)
         return {'outputs': x}
 
 

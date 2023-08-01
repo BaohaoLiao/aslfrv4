@@ -212,7 +212,20 @@ def main():
             per_example_loss = loss_object(labels, predictions, sample_weight=sample_weight)
             loss = tf.nn.compute_average_loss(per_example_loss, global_batch_size=args.batch_size)
             return loss
-        model.compile(optimizer=optimizer, loss_fn=loss_fn)
+
+        def CTCLoss(labels, logits, label_length, logits_length, blank_idx, logits_time_major):
+            loss = tf.nn.ctc_loss(
+                labels=labels,
+                logits=logits,
+                label_length=label_length,
+                logit_length=logits_length,
+                blank_index=blank_idx,
+                logits_time_major=logits_time_major
+            )
+            loss = tf.reduce_mean(loss)
+            return loss
+
+        model.compile(optimizer=optimizer, loss_fn=loss_fn, ctc_loss_fn=CTCLoss)
         if args.resume is not None:
             logging.info(f"Resume from {args.resume}")
             model.load_weights(args.resume)

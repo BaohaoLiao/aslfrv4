@@ -9,71 +9,10 @@ class LandmarkEmbedding(tf.keras.layers.Layer):
         self.dense = tf.keras.layers.Dense(d_model, use_bias=False, name='proj')
         self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
 
-    def call(self, x, training):
+    def call(self, x):
         x = self.dense(x)
-        x = self.norm(x, training=training)
+        x = self.norm(x)
         return x
-
-
-class MultiHeadSelfAttention(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dropout, max_length, **kwargs):
-        super().__init__(**kwargs)
-        self.d_model = d_model
-        self.scale = self.d_model ** -0.5
-        self.num_heads = num_heads
-        self.head_dim = d_model // num_heads
-        self.max_length = max_length
-
-        self.qkv = tf.keras.layers.Dense(3 * d_model, use_bias=False, name="qkv")
-        self.dropout = tf.keras.layers.Dropout(dropout)
-        self.proj = tf.keras.layers.Dense(d_model, use_bias=False, name="out")
-        self.rel_pos_emb = tf.keras.layers.Embedding(2 * max_length + 1, self.head_dim)
-
-    def call(self, inputs, mask, training):
-        seq_length = tf.shape(inputs)[1]
-        qkv = self.qkv(inputs)
-        qkv = tf.keras.layers.Permute((2, 1, 3)) \
-            (tf.keras.layers.Reshape((-1, self.num_heads, self.d_model * 3 // self.num_heads))(qkv))
-        q, k, v = tf.split(qkv, [self.d_model // self.num_heads] * 3, axis=-1)  # B x #head x
-        attn = tf.matmul(q, k, transpose_b=True) * self.scale
-
-        seq = tf.range(seq_length)
-        dist = tf.expand_dims(seq, 1) - tf.expand_dims(seq, 0)
-        dist = (
-                tf.clip_by_value(
-                    dist, clip_value_min=-self.max_length, clip_value_max=self.max_length
-                )
-                + self.max_length
-        )
-        rel_pos_emb = self.rel_pos_emb(dist)
-        pos_attn = tf.einsum("b h n d, n r d -> b h n r", q, rel_pos_emb) * self.scale
-        attn = attn + pos_attn
-
-        mask = mask[:, None, None, :]
-        attn = tf.keras.layers.Softmax(axis=-1)(attn, mask=mask)
-        attn = self.dropout(attn, training=training)
-        x = attn @ v
-        x = tf.keras.layers.Reshape((-1, self.d_model))(tf.keras.layers.Permute((2, 1, 3))(x))
-        x = self.proj(x)
-        return x
-
-
-class Swish(tf.keras.layers.Layer):
-    def __init__(self, **kwargs):
-        super(Swish, self).__init__(**kwargs)
-
-    def call(self, inputs):
-        return inputs * tf.sigmoid(inputs)
-
-
-class GLU(tf.keras.layers.Layer):
-    def __init__(self, dim, **kwargs):
-        super(GLU, self).__init__(**kwargs)
-        self.dim = dim
-
-    def call(self, inputs):
-        out, gate = tf.split(inputs, 2, axis=self.dim)
-        return out * tf.sigmoid(gate)
 
 
 class CausalDWConv1D(tf.keras.layers.Layer):
@@ -95,135 +34,67 @@ class CausalDWConv1D(tf.keras.layers.Layer):
         return x
 
 
-class ConformerFeedForward(tf.keras.layers.Layer):
-    def __init__(self, d_model, mlp_dim, dropout, **kwargs):
-        super(ConformerFeedForward, self).__init__(**kwargs)
-        self.dense1 = tf.keras.layers.Dense(mlp_dim, activation=Swish(), name="dense1")
-        self.dropout1 = tf.keras.layers.Dropout(dropout, name="dropout1")
-        self.dense2 = tf.keras.layers.Dense(d_model, name="dense2")
-        self.dropout2 = tf.keras.layers.Dropout(dropout, name="dropout2")
+class ECA(tf.keras.layers.Layer):
+    def __init__(self, kernel_size=5, **kwargs):
+        super().__init__(**kwargs)
+        self.conv = tf.keras.layers.Conv1D(
+            1, kernel_size=kernel_size, strides=1, padding="same", use_bias=False, name="conv1d")
 
-    def call(self, inputs, training):
-        x = self.dense1(inputs)
-        x = self.dropout1(x, training=training)
-        x = self.dense2(x)
-        x = self.dropout2(x, training=training)
-        return x
+    def call(self, inputs, mask):
+        nn = tf.keras.layers.GlobalAveragePooling1D()(inputs, mask=mask)
+        nn = tf.expand_dims(nn, -1)
+        nn = self.conv(nn)
+        nn = tf.squeeze(nn, -1)
+        nn = tf.nn.sigmoid(nn)
+        nn = nn[:, None, :]
+        return inputs * nn
 
 
-class ConvModule(tf.keras.layers.Layer):
-    def __init__(self, d_model, conv_dim, kernel_size, dilation_rate, dropout, **kwargs):
-        super(ConvModule, self).__init__(**kwargs)
-        self.norm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
-        self.conv1d1 = tf.keras.layers.Conv1D(filters=conv_dim * 2, kernel_size=1, use_bias=False, name="conv1d1")
-        self.act1 = GLU(dim=-1, name="glu")
-        self.causal_conv = CausalDWConv1D(kernel_size, dilation_rate, use_bias=False, name="causal_conv")
-        self.norm2 = tf.keras.layers.BatchNormalization(momentum=0.95, name="bn")
-        self.act2 = Swish(name="swish")
-        self.conv1d2 = tf.keras.layers.Conv1D(filters=d_model, kernel_size=1, use_bias=False, name="conv1d2")
-        self.dropout = tf.keras.layers.Dropout(dropout)
+class Conv1DBlock(tf.keras.layers.Layer):
+    def __init__(self, d_model, conv_dim, kernel_size, dilation_rate, dropout, activation, **kwargs):
+        super(Conv1DBlock, self).__init__(**kwargs)
+        self.dense1 = tf.keras.layers.Dense(conv_dim, use_bias=True, activation=activation, name="dense1")
+        self.causal_conv = CausalDWConv1D(
+            kernel_size=kernel_size, dilation_rate=dilation_rate, use_bias=False, name="causal_conv")
+        self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
+        self.eca = ECA(name="eca")
+        self.dense2 = tf.keras.layers.Dense(d_model, use_bias=True, name="dense2")
+        self.dropout = tf.keras.layers.Dropout(dropout, noise_shape=(None, 1, 1), name="dropout")
 
-    def call(self, inputs, training):
-        x = self.norm1(inputs, training=training)
-        x = self.conv1d1(x)
-        x = self.act1(x)
+    def call(self, x, mask, training):
+        skip = x
+        x = self.dense1(x)
         x = self.causal_conv(x)
-        x = self.norm2(x, training=training)
-        x = self.act2(x)
-        x = self.conv1d2(x)
+        x = self.norm(x)
+        x = self.eca(x, mask=mask)
+        x = self.dense2(x)
         x = self.dropout(x, training=training)
+        x = tf.keras.layers.add([x, skip])
         return x
 
 
-class ConformerEncoderLayer(tf.keras.layers.Layer):
-    def __init__(
-            self,
-            d_model,
-            num_heads,
-            conv_dim,
-            mlp_dim,
-            kernel_size,
-            dilation_rate,
-            attn_dropout,
-            hidden_dropout,
-            max_length,
-            **kwargs
-    ):
-        super(ConformerEncoderLayer, self).__init__(**kwargs)
-        self.ff1_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ff1_ln")
-        self.ff1 = ConformerFeedForward(
-            d_model=d_model,
-            mlp_dim=mlp_dim,
-            dropout=hidden_dropout,
-            name="ff1")
-
-        self.attn_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="attn_ln")
-        self.attn = MultiHeadSelfAttention(
-            d_model=d_model,
-            num_heads=num_heads,
-            dropout=attn_dropout,
-            max_length=max_length,
-            name="self_attn")
-        self.attn_dropout = tf.keras.layers.Dropout(hidden_dropout, name="attn_dropout")
-
-        self.conv = ConvModule(
-            d_model=d_model,
-            conv_dim=conv_dim,
-            kernel_size=kernel_size,
-            dilation_rate=dilation_rate,
-            dropout=hidden_dropout,
-            name="conv_module")
-
-        self.ff2_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ff2_ln")
-        self.ff2 = ConformerFeedForward(
-            d_model=d_model,
-            mlp_dim=mlp_dim,
-            dropout=hidden_dropout,
-            name="ff2")
-        self.final_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="final_ln")
+class MultiHeadSelfAttention(tf.keras.layers.Layer):
+    def __init__(self, d_model, num_heads, dropout, **kwargs):
+        super().__init__(**kwargs)
+        self.d_model = d_model
+        self.scale = self.d_model ** -0.5
+        self.num_heads = num_heads
+        self.qkv = tf.keras.layers.Dense(3 * d_model, use_bias=False, name="qkv")
+        self.dropout = tf.keras.layers.Dropout(dropout)
+        self.proj = tf.keras.layers.Dense(d_model, use_bias=False, name="out")
 
     def call(self, inputs, mask, training):
-        ff1_out = self.ff1_norm(inputs, training=training)
-        ff1_out = self.ff1(ff1_out, training=training)
-        ff1_out = 0.5 * ff1_out + inputs
-
-        attn_out = self.attn_norm(ff1_out, training=training)
-        attn_out = self.attn(attn_out, mask=mask, training=training)
-        attn_out = self.attn_dropout(attn_out, training=training)
-        attn_out = attn_out + ff1_out
-
-        conv_out = self.conv(attn_out, training=training)
-        conv_out = conv_out + attn_out
-
-        ff2_out = self.ff2_norm(conv_out, training=training)
-        ff2_out = self.ff2(ff2_out, training=training)
-        ff2_out = 0.5 * ff2_out + conv_out
-        ff2_out = self.final_norm(ff2_out, training=training)
-        return ff2_out
-
-
-class ConformerEncoder(tf.keras.layers.Layer):
-    def __init__(self, num_layers, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout,
-                 hidden_dropout, max_source_length, **kwargs):
-        super(ConformerEncoder, self).__init__(**kwargs)
-        self.embedding = LandmarkEmbedding(d_model, name="landmark_embedding")
-        self.layers = [
-            ConformerEncoderLayer(
-                d_model=d_model,
-                num_heads=num_heads,
-                conv_dim=conv_dim,
-                mlp_dim=mlp_dim,
-                kernel_size=kernel_size,
-                dilation_rate=dilation_rate,
-                attn_dropout=attn_dropout,
-                hidden_dropout=hidden_dropout,
-                max_length=max_source_length,
-                name=f"encoder_layer{i}") for i in range(num_layers)]
-
-    def call(self, inputs, mask, training):
-        x = self.embedding(inputs, training=training)
-        for layer in self.layers:
-            x = layer(x, mask=mask, training=training)
+        qkv = self.qkv(inputs)
+        qkv = tf.keras.layers.Permute((2, 1, 3))\
+            (tf.keras.layers.Reshape((-1, self.num_heads, self.d_model * 3 // self.num_heads))(qkv))
+        q, k, v = tf.split(qkv, [self.d_model // self.num_heads] * 3, axis=-1)
+        attn = tf.matmul(q, k, transpose_b=True) * self.scale
+        mask = mask[:, None, None, :]
+        attn = tf.keras.layers.Softmax(axis=-1)(attn, mask=mask)
+        attn = self.dropout(attn, training=training)
+        x = attn @ v
+        x = tf.keras.layers.Reshape((-1, self.d_model))(tf.keras.layers.Permute((2, 1, 3))(x))
+        x = self.proj(x)
         return x
 
 
@@ -240,6 +111,89 @@ class FeedForward(tf.keras.layers.Layer):
     def call(self, x):
         x = self.dense1(x)
         x = self.dense2(x)
+        return x
+
+
+class TransformerEncoderLayer(tf.keras.layers.Layer):
+    def __init__(self, d_model, num_heads, mlp_dim, attn_dropout, hidden_dropout, activation, **kwargs):
+        super(TransformerEncoderLayer, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.norm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln1")
+        self.attention = MultiHeadSelfAttention(d_model, num_heads, attn_dropout, name="custom_attention")
+        self.attn_dropout = tf.keras.layers.Dropout(hidden_dropout, noise_shape=(None, 1, 1))
+
+        self.norm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln2")
+        self.mlp = FeedForward(d_model, mlp_dim, activation, name="mlp")
+        self.mlp_dropout = tf.keras.layers.Dropout(hidden_dropout, noise_shape=(None, 1, 1))
+
+    def call(self, inputs, mask, training):
+        x = inputs
+        x = self.norm1(x)
+        x = self.attention(x, mask=mask)
+        x = self.attn_dropout(x, training=training)
+        x = tf.keras.layers.Add()([inputs, x])
+        attn_out = x
+
+        x = self.norm2(x)
+        x = self.mlp(x)
+        x = self.mlp_dropout(x)
+        x = tf.keras.layers.Add()([attn_out, x])
+        return x
+
+
+class CNNEncoderLayer(tf.keras.layers.Layer):
+    def __init__(self, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout, hidden_dropout,
+        activation, **kwargs):
+        super(CNNEncoderLayer, self).__init__(**kwargs)
+        self.convs = [Conv1DBlock(
+            d_model=d_model,
+            conv_dim=conv_dim,
+            kernel_size=kernel_size,
+            dilation_rate=dilation_rate,
+            dropout=hidden_dropout,
+            activation=activation,
+            name=f"conv{i}") for i in range(3)]
+        self.transformer_block = TransformerEncoderLayer(
+            d_model=d_model,
+            num_heads=num_heads,
+            mlp_dim=mlp_dim,
+            attn_dropout=attn_dropout,
+            hidden_dropout=hidden_dropout,
+            activation=activation,
+            name="transformer_encoder")
+
+    def call(self, inputs, mask, training):
+        x = inputs
+        for conv in self.convs:
+            x = conv(x, mask=mask, training=training)
+        x = self.transformer_block(x, mask=mask, training=training)
+        return x
+
+
+class CNNEncoder(tf.keras.layers.Layer):
+    def __init__(self, num_layers, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout,
+            hidden_dropout, activation, **kwargs):
+        super(CNNEncoder, self).__init__(**kwargs)
+        self.embedding = LandmarkEmbedding(d_model, name="landmark_embedding")
+        self.layers = [
+            CNNEncoderLayer(
+                d_model=d_model,
+                kernel_size=kernel_size,
+                dilation_rate=dilation_rate,
+                num_heads=num_heads,
+                mlp_dim=mlp_dim,
+                conv_dim=conv_dim,
+                attn_dropout=attn_dropout,
+                hidden_dropout=hidden_dropout,
+                activation=activation,
+                name=f"encoder_layer{i}") for i in range(num_layers)]
+        self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
+
+    def call(self, inputs, mask, training):
+        x = self.embedding(inputs)
+        for layer in self.layers:
+            x = layer(x, mask=mask, training=training)
+        x = self.norm(x)
         return x
 
 
@@ -444,7 +398,7 @@ class LMHead(tf.keras.layers.Layer):
         return self.dense2(x)
 
 
-class ConformerEncoderTransformerDecoder(tf.keras.Model):
+class CNNEncoderTransformerDecoder(tf.keras.Model):
     def __init__(
         self,
         num_encoder_layers: int,
@@ -468,10 +422,10 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
         learnable_position: bool,
         prenorm: bool,
         activation: str):
-        super(ConformerEncoderTransformerDecoder, self).__init__()
+        super(CNNEncoderTransformerDecoder, self).__init__()
         self.vocab_size = vocab_size
         self.pad_token_id = pad_token_id
-        self.encoder = ConformerEncoder(
+        self.encoder = CNNEncoder(
             num_layers=num_encoder_layers,
             d_model=encoder_hidden_dim,
             kernel_size=encoder_kernel_size,
@@ -481,7 +435,7 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             conv_dim=encoder_conv_dim,
             attn_dropout=attn_dropout,
             hidden_dropout=hidden_dropout,
-            max_source_length=max_source_length,
+            activation=activation,
             name="encoder")
         self.decoder = TransformerDecoder(
             vocab_size=vocab_size,
@@ -508,6 +462,11 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             vocab_size=vocab_size,
             activation=activation,
             name="lm_head")
+        self.ctc_head = LMHead(
+            d_model=encoder_hidden_dim,
+            vocab_size=vocab_size,
+            activation=activation,
+            name="ctc_head")
 
         self.loss_metric = tf.keras.metrics.Mean(name="loss")
         self.top1_acc_metric = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name="top1_acc")
@@ -519,106 +478,69 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
 
         encoder_attention_mask = tf.reduce_sum(tf.cast(source!=PAD, tf.float32), axis=2)!=0
         encoder_out = self.encoder(source, mask=encoder_attention_mask, training=training)
+        ctc_out = self.ctc_head(encoder_out)
+
         if self.encoder_proj is not None:
             encoder_out = self.encoder_proj(encoder_out)
-
         decoder_out = self.decoder(
             input_ids=target,
             encoder_out=encoder_out,
             encoder_attention_mask=encoder_attention_mask,
-            training=training
-        )
-        return self.lm_head(decoder_out)
+            training=training)
+        decoder_out = self.lm_head(decoder_out)
+        return ctc_out, decoder_out
 
     @property
     def metrics(self):
         return [self.loss_metric]
 
-    def compile(self, optimizer, loss_fn):
+    def compile(self, optimizer, loss_fn, ctc_loss_fn):
         super().compile(optimizer=optimizer)
         self.loss_fn = loss_fn
+        self.ctc_loss_fn = ctc_loss_fn
 
-    def vanilla_train_step(self, batch):
+    def train_step(self, batch):
         source = batch[0]
         masked_target = batch[1]
         target = batch[2]
+        logits_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
+        logits_length = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
+        target_length = tf.reduce_sum(tf.cast(target != self.pad_token_id, tf.int32), axis=-1)
 
         dec_input = masked_target[:, :-1]
         dec_target = target[:, 1:]
         with tf.GradientTape() as tape:
-            preds = self([source, dec_input], training=True)
+            ctc_out, decoder_out = self([source, dec_input], training=True)
             one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
             mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
-            loss = self.loss_fn(one_hot, preds, sample_weight=mask)
+            auto_loss = self.loss_fn(one_hot, decoder_out, sample_weight=mask)
+            ctc_loss = self.ctc_loss_fn(
+                labels=target,
+                logits=ctc_out,
+                label_length=target_length,
+                logits_length=logits_length,
+                blank_idx=self.pad_token_id,
+                logits_time_major=False)
+            loss = 0.8 * auto_loss + 0.2 * ctc_loss
+
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
 
         self.loss_metric.update_state(loss)
-        self.top1_acc_metric.update_state(one_hot, preds, sample_weight=mask)
-        self.top5_acc_metric.update_state(one_hot, preds, sample_weight=mask)
+        self.top1_acc_metric.update_state(one_hot, decoder_out, sample_weight=mask)
+        self.top5_acc_metric.update_state(one_hot, decoder_out, sample_weight=mask)
         return {
             "loss": self.loss_metric.result(),
             "top1_acc": self.top1_acc_metric.result(),
             "top5_acc": self.top5_acc_metric.result()}
-
-    def awp_train_step(self, batch):
-        source = batch[0]
-        masked_target = batch[1]
-        target = batch[2]
-
-        dec_input = masked_target[:, :-1]
-        dec_target = target[:, 1:]
-
-        with tf.GradientTape() as tape:
-            preds = self([source, dec_input], training=True)
-            one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
-            mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
-            loss = self.loss_fn(one_hot, preds, sample_weight=mask)
-        params = self.trainable_variables
-        params_gradients = tape.gradient(loss, self.trainable_variables)
-        for i in range(len(params_gradients)):
-            grad = tf.zeros_like(params[i]) + params_gradients[i]
-            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
-            self.trainable_variables[i].assign_add(delta)
-        with tf.GradientTape() as tape2:
-            preds = self([source, dec_input], training=True)
-            new_loss = self.loss_fn(one_hot, preds, sample_weight=mask)
-            if hasattr(self.optimizer, 'get_scaled_loss'):
-                new_loss = self.optimizer.get_scaled_loss(new_loss)
-        gradients = tape2.gradient(new_loss, self.trainable_variables)
-        if hasattr(self.optimizer, 'get_unscaled_gradients'):
-            gradients = self.optimizer.get_unscaled_gradients(gradients)
-        for i in range(len(params_gradients)):
-            grad = tf.zeros_like(params[i]) + params_gradients[i]
-            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
-            self.trainable_variables[i].assign_sub(delta)
-        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-
-        self.loss_metric.update_state(loss)
-        self.top1_acc_metric.update_state(one_hot, preds, sample_weight=mask)
-        self.top5_acc_metric.update_state(one_hot, preds, sample_weight=mask)
-        return {
-            "loss": self.loss_metric.result(),
-            "top1_acc": self.top1_acc_metric.result(),
-            "top5_acc": self.top5_acc_metric.result()}
-
-    def train_step(self, batch):
-        global_step_value = tf.distribute.get_replica_context().merge_call(
-            lambda _: self._train_counter
-        )
-
-        if global_step_value < 100:
-            return self.vanilla_train_step(batch)
-        else:
-            return self.awp_train_step(batch)
 
     def test_step(self, batch):
         source = batch[0]
         target = batch[2]
         dec_input = target[:, :-1]
         dec_target = target[:, 1:]
-        preds = self([source, dec_input], training=False)
+        _, preds = self([source, dec_input], training=False)
         one_hot = tf.one_hot(dec_target, depth=self.vocab_size)
         mask = tf.math.logical_not(tf.math.equal(dec_target, self.pad_token_id))
         loss = self.loss_fn(one_hot, preds, sample_weight=mask)
@@ -635,6 +557,11 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * start_token_id
         encoder_attention_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
         encoder_out = self.encoder(source, mask=encoder_attention_mask, training=False)
+
+        ctc_lengths = tf.reduce_sum(tf.cast(encoder_attention_mask, tf.int32), axis=-1)
+        ctc_logits = self.ctc_head(encoder_out, training=False)
+        ctc_preds = tf.argmax(ctc_logits, axis=-1, output_type=tf.int32)
+
         if self.encoder_proj is not None:
             encoder_out = self.encoder_proj(encoder_out)
 
@@ -648,7 +575,7 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
-        return dec_input
+        return dec_input, ctc_preds, ctc_lengths
 
 
 

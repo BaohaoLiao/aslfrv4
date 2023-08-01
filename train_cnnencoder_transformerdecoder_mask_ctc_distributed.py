@@ -7,14 +7,10 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-import tensorflow_addons as tfa
-from tf_utils.schedules import OneCycleLR, ListedLR
-
 from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
-from display import DisplayOutputs
-from mask.cnnencoder_transformerdecoder_mask_awp import CNNEncoderTransformerDecoder
-from mask.conformerencoder_transformerdecoder_mask_awp_v2 import ConformerEncoderTransformerDecoder
+from auto_ctc.display_ctc import DisplayOutputs
+from auto_ctc.cnnencoder_transformerdecoder_mask_ctc import CNNEncoderTransformerDecoder
 from metadata import XY_POINT_LANDMARKS
 
 
@@ -35,9 +31,8 @@ def parse_args():
     parser.add_argument("--num_folds", type=int, default=10)
     # Model args
     parser.add_argument("--model_arch",
-                        choices=["transformer", "cnnencoder_transformerdecoder", "cnnencoderbn_transformerdecoder",
-                                 "cnnencoderv2_transformerdecoder", "conformerencoder_transformerdecoder"],
-                        default="transformer")
+                        choices=["cnnencoder_transformerdecoder_ctc"],
+                        default="cnnencoder_transformerdecoder_ctc")
     parser.add_argument("--num_encoder_layers", type=int, default=3)
     parser.add_argument("--encoder_hidden_dim", type=int, default=384)
     parser.add_argument("--encoder_mlp_dim", type=int, default=768)
@@ -77,7 +72,6 @@ def parse_args():
     parser.add_argument("--label_smoothing", type=int, default=0.1)
     parser.add_argument("--verbose", type=int, default=2)
     parser.add_argument("--seed", type=int, default=3407)
-    parser.add_argument("--lookahead", action="store_true")
     # Data augmentation
     parser.add_argument("--flip", type=float, default=0.)
     parser.add_argument("--resample", type=float, default=0.)
@@ -146,7 +140,7 @@ def main():
         char_to_num=char_to_num,
         augment=True,
         repeat=True,
-        shuffle=3000,
+        shuffle=30000,
         drop_remainder=True
     )
     val_dataset = load_dataset(
@@ -171,7 +165,7 @@ def main():
     total_steps = num_train * args.num_epochs // args.batch_size
 
     with strategy.scope():
-        if args.model_arch == "cnnencoder_transformerdecoder":
+        if args.model_arch == "cnnencoder_transformerdecoder_ctc":
             model = CNNEncoderTransformerDecoder(
                 num_encoder_layers=args.num_encoder_layers,
                 encoder_hidden_dim=args.encoder_hidden_dim,
@@ -194,30 +188,6 @@ def main():
                 learnable_position=args.learnable_position,
                 prenorm=args.prenorm,
                 activation=args.activation)
-        elif args.model_arch == "conformerencoder_transformerdecoder":
-            model = ConformerEncoderTransformerDecoder(
-                num_encoder_layers=args.num_encoder_layers,
-                encoder_hidden_dim=args.encoder_hidden_dim,
-                encoder_mlp_dim=args.encoder_mlp_dim,
-                encoder_num_heads=args.encoder_num_heads,
-                encoder_conv_dim=args.encoder_conv_dim,
-                encoder_kernel_size=args.encoder_kernel_size,
-                encoder_dilation_rate=args.encoder_dilation_rate,
-                max_source_length=args.max_source_length,
-                num_decoder_layers=args.num_decoder_layers,
-                vocab_size=args.vocab_size,
-                decoder_hidden_dim=args.decoder_hidden_dim,
-                decoder_mlp_dim=args.decoder_mlp_dim,
-                decoder_num_heads=args.decoder_num_heads,
-                max_target_length=args.max_target_length,
-                pad_token_id=args.pad_token_id,
-                emb_dropout=args.emb_dropout,
-                attn_dropout=args.attn_dropout,
-                hidden_dropout=args.hidden_dropout,
-                learnable_position=args.learnable_position,
-                prenorm=args.prenorm,
-                activation=args.activation)
-
         virtual_intput = (
             np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
             np.zeros((1, args.max_target_length), dtype=np.int32)
@@ -225,42 +195,15 @@ def main():
         logging.info(f"{tf.shape(model(virtual_intput))}")
         logging.info(model.summary())
 
-        if args.lookahead:
-            schedule = OneCycleLR(
-                args.lr,
-                args.num_epochs,
-                warmup_epochs=args.num_epochs * args.warmup_ratio,
-                steps_per_epoch=steps_per_epoch,
-                resume_epoch=0.,
-                decay_epochs=args.num_epochs,
-                lr_min=1e-6,
-                decay_type="cosine",
-                warmup_type='linear')
-            decay_schedule = OneCycleLR(
-                args.lr * args.weight_decay,
-                args.num_epochs,
-                warmup_epochs=args.num_epochs * args.warmup_ratio,
-                steps_per_epoch=steps_per_epoch,
-                resume_epoch=0.,
-                decay_epochs=args.num_epochs,
-                lr_min=1e-6 * args.weight_decay,
-                decay_type="cosine",
-                warmup_type='linear')
-            optimizer = tfa.optimizers.RectifiedAdam(
-                learning_rate=schedule,
-                weight_decay=decay_schedule,
-                sma_threshold=4)  # , clipvalue=1.)
-            optimizer = tfa.optimizers.Lookahead(optimizer, sync_period=5)
-        else:
-            learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
-            optimizer = tf.keras.optimizers.AdamW(
-                learning_rate=learning_rate,
-                beta_1=0.9,
-                beta_2=0.98,
-                epsilon=1e-9,
-                clipnorm=args.max_norm,
-                weight_decay=args.weight_decay,
-            )
+        learning_rate = LRInverseSqrtScheduler(args.lr, warmup_steps=int(args.warmup_ratio * total_steps))
+        optimizer = tf.keras.optimizers.AdamW(
+            learning_rate=learning_rate,
+            beta_1=0.9,
+            beta_2=0.98,
+            epsilon=1e-9,
+            clipnorm=args.max_norm,
+            weight_decay=args.weight_decay,
+        )
         loss_object = tf.keras.losses.CategoricalCrossentropy(
             from_logits=True,
             label_smoothing=args.label_smoothing,
@@ -287,7 +230,7 @@ def main():
         pad_token=args.pad_token,
         start_token=args.start_token,
         end_token=args.end_token,
-        max_target_length=args.max_target_length)
+        max_target_length=args.max_gen_length)
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=os.path.join(args.output_dir, "checkpoint_epoch{epoch:03d}.h5"),
         save_weights_only=True,

@@ -702,7 +702,7 @@ class TFLiteModelv2(tf.Module):
 
         x = dec_input[0]
         idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))
-        idx = tf.where(tf.math.less(idx, 1), tf.constant(max_gen_length, dtype=tf.int64), idx)
+        idx = tf.where(tf.math.less(idx, 1), tf.cast(max_gen_length, dtype=tf.int64), idx)
         x = x[1:idx]
         x = tf.one_hot(x, 59)
         return {'outputs': x}

@@ -77,7 +77,7 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
             ctc_score /= len(lv_distances)
             ctc_global_score = (ctc_global_length - ctc_global_dist) / ctc_global_length
 
-            logging.info(f"Epoch{epoch + 1}: auto score, local: {score}, ctc score: {ctc_global_score}")
+            logging.info(f"Epoch{epoch + 1}: auto score: {global_score}, ctc score: {ctc_global_score}")
 
     def decode(self, x):
         diff = tf.not_equal(x[:-1], x[1:])

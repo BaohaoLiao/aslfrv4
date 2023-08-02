@@ -8,6 +8,7 @@ from metadata import XY_POINT_LANDMARKS
 from train_cnnencoder_transformerdecoder import parse_args
 from models.cnnencoder_transformerdecoder import CNNEncoderTransformerDecoder
 from mask.conformerencoder_transformerdecoder_mask import ConformerEncoderTransformerDecoder
+from mask.conformerencoder_transformerdecoder_mask_droppath import ConformerEncoderTransformerDecoder as ConformerEncoderTransformerDecoderDroppath
 
 
 logging.basicConfig(
@@ -58,6 +59,29 @@ def main():
             activation=args.activation)
     elif args.model_arch == "conformerencoder_transformerdecoder":
         model = ConformerEncoderTransformerDecoder(
+            num_encoder_layers=args.num_encoder_layers,
+            encoder_hidden_dim=args.encoder_hidden_dim,
+            encoder_mlp_dim=args.encoder_mlp_dim,
+            encoder_num_heads=args.encoder_num_heads,
+            encoder_conv_dim=args.encoder_conv_dim,
+            encoder_kernel_size=args.encoder_kernel_size,
+            encoder_dilation_rate=args.encoder_dilation_rate,
+            max_source_length=args.max_source_length,
+            num_decoder_layers=args.num_decoder_layers,
+            vocab_size=args.vocab_size,
+            decoder_hidden_dim=args.decoder_hidden_dim,
+            decoder_mlp_dim=args.decoder_mlp_dim,
+            decoder_num_heads=args.decoder_num_heads,
+            max_target_length=args.max_target_length,
+            pad_token_id=args.pad_token_id,
+            emb_dropout=args.emb_dropout,
+            attn_dropout=args.attn_dropout,
+            hidden_dropout=args.hidden_dropout,
+            learnable_position=args.learnable_position,
+            prenorm=args.prenorm,
+            activation=args.activation)
+    elif args.model_arch == "conformerencoder_transformerdecoder_droppath":
+        model = ConformerEncoderTransformerDecoderDroppath(
             num_encoder_layers=args.num_encoder_layers,
             encoder_hidden_dim=args.encoder_hidden_dim,
             encoder_mlp_dim=args.encoder_mlp_dim,

@@ -92,6 +92,7 @@ def parse_args():
     parser.add_argument("--mask_prob", type=float, default=0.)
     parser.add_argument("--random_token_prob", type=float, default=0.)
     parser.add_argument("--resume", type=str, default=None)
+    parser.add_argument("--num_valid", type=int, default=6432)
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)
@@ -163,12 +164,12 @@ def main():
 
     #TODO: automatically count
     if args.fold != "all":
-        num_train = int(64329 * 9. / args.num_folds)
+        num_train = 64329 - args.num_valid
     else:
         num_train = 64329
         if args.num_folds == 20:
             num_train += 50927
-    num_valid = int(64329 * 1. / args.num_folds)
+    num_valid = args.num_valid
     steps_per_epoch = num_train // args.batch_size
     total_steps = num_train * args.num_epochs // args.batch_size
 

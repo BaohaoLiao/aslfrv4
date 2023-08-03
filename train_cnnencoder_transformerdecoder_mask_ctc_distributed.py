@@ -24,7 +24,7 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train ASLFR models")
-    # Output args
+    # Output arg
     parser.add_argument("--output_dir", type=str, required=True)
     # Data args
     parser.add_argument("--data_dir", type=str, required=True)

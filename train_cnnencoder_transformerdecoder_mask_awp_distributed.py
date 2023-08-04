@@ -94,7 +94,7 @@ def parse_args():
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--num_valid", type=int, default=6432)
     # adversarial
-    parser.add_argument("--awp_delta", type=float, default=2.)
+    parser.add_argument("--awp_delta", type=float, default=0.2)
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)

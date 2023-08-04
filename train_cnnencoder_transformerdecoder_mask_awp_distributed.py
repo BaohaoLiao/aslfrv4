@@ -93,6 +93,8 @@ def parse_args():
     parser.add_argument("--random_token_prob", type=float, default=0.)
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--num_valid", type=int, default=6432)
+    # adversarial
+    parser.add_argument("--awp_delta", type=float, default=2.)
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)
@@ -295,7 +297,7 @@ def main():
             per_example_loss = loss_object(labels, predictions, sample_weight=sample_weight)
             loss = tf.nn.compute_average_loss(per_example_loss, global_batch_size=args.batch_size)
             return loss
-        model.compile(optimizer=optimizer, loss_fn=loss_fn)
+        model.compile(optimizer=optimizer, loss_fn=loss_fn, awp_delta=args.awp_delta)
         if args.resume is not None:
             logging.info(f"Resume from {args.resume}")
             model.load_weights(args.resume)

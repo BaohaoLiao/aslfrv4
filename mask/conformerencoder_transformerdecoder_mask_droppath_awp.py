@@ -534,9 +534,10 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
     def metrics(self):
         return [self.loss_metric]
 
-    def compile(self, optimizer, loss_fn):
+    def compile(self, optimizer, loss_fn, awp_delta):
         super().compile(optimizer=optimizer)
         self.loss_fn = loss_fn
+        self.awp_delta = awp_delta
 
     def train_step(self, batch):
         source = batch[0]
@@ -555,7 +556,7 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
         params_gradients = tape.gradient(loss, self.trainable_variables)
         for i in range(len(params_gradients)):
             grad = tf.zeros_like(params[i]) + params_gradients[i]
-            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
+            delta = tf.math.divide_no_nan(self.awp_delta * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
             self.trainable_variables[i].assign_add(delta)
         with tf.GradientTape() as tape2:
             preds = self([source, dec_input], training=True)
@@ -567,7 +568,7 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             gradients = self.optimizer.get_unscaled_gradients(gradients)
         for i in range(len(params_gradients)):
             grad = tf.zeros_like(params[i]) + params_gradients[i]
-            delta = tf.math.divide_no_nan(0.2 * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
+            delta = tf.math.divide_no_nan(self.awp_delta * grad, tf.math.sqrt(tf.reduce_sum(grad ** 2)) + 0.)
             self.trainable_variables[i].assign_sub(delta)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 

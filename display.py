@@ -5,7 +5,7 @@ from Levenshtein import distance as Lev_distance
 class DisplayOutputs(tf.keras.callbacks.Callback):
     def __init__(
             self, model, val_dataset, idx_to_token, start_token_id, end_token_id,  pad_token, start_token, end_token,
-            max_target_length):
+            max_target_length, display_epoch):
         self.model = model
         self.batches = [batch for batch in val_dataset]
         self.start_token_id = start_token_id
@@ -15,10 +15,11 @@ class DisplayOutputs(tf.keras.callbacks.Callback):
         self.start_token = start_token
         self.end_token = end_token
         self.max_target_length = max_target_length
+        self.display_epoch = display_epoch
 
     def on_epoch_end(self, epoch, logs=None):
         #logging.info(f'Learning rate: {self.model.optimizer.learning_rate.numpy():.5e}')
-        if epoch > 50:
+        if epoch > self.display_epoch:
             lv_distances = []
             for batch in self.batches:
                 source = batch[0]

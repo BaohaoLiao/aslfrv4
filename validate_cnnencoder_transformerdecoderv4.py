@@ -83,12 +83,12 @@ class PreprocessLayerv2(tf.keras.layers.Layer):
         x = (x - mean) / std
 
         if n_frames > self.max_source_length:
-            #x = x[:, :self.max_source_length]
-            x = tf.image.resize(
-                x,
-                [self.max_source_length, frame_dim//2],
-                method=tf.image.ResizeMethod.BILINEAR,
-            )
+            x = x[:, :self.max_source_length]
+            #x = tf.image.resize(
+            #    x,
+            #    [self.max_source_length, frame_dim//2],
+            #    method=tf.image.ResizeMethod.BILINEAR,
+            #)
         if n_frames < 3:
             x = tf.pad(x, [[0, 0], [0, 3-n_frames], [0, 0], [0, 0]])
 

@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from datetime import datetime
 from Levenshtein import distance as Lev_distance
+from tensorflow import keras
 
 from auto_ctc.conformerencoder_transformerdecoder_mask_droppath_ctc import (
     ConformerEncoderTransformerDecoder,
@@ -113,6 +114,9 @@ def main():
     #logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
     model.save(os.path.join(args.output_dir, 'model.h5py'), save_format='tf')
+
+    del model
+    model = keras.models.load_model(os.path.join(args.output_dir, 'model.h5py'))
 
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(

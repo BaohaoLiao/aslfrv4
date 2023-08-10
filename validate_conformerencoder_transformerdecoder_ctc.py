@@ -115,8 +115,8 @@ def main():
     model.load_weights(args.checkpoint_path)
     model.save(os.path.join(args.output_dir, 'model.h5py'), save_format='tf')
 
-    del model
-    model = keras.models.load_model(os.path.join(args.output_dir, 'model.h5py'))
+    #del model
+    #model = keras.models.load_model(os.path.join(args.output_dir, 'model.h5py'))
 
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(

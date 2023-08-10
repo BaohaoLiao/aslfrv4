@@ -14,7 +14,7 @@ from auto_ctc.conformerencoder_transformerdecoder_mask_droppath_ctc import (
 
 from metadata import XY_POINT_LANDMARKS, PAD
 from data import filter_nans_tf, tf_nan_mean, tf_nan_std, decode_fn
-from train_cnnencoder_transformerdecoder import parse_args
+from train_cnnencoder_transformerdecoder_mask_ctc_distributed import parse_args
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",

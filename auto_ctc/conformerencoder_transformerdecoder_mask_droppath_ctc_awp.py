@@ -649,6 +649,3 @@ class ConformerEncoderTransformerDecoder(tf.keras.Model):
             last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
         return dec_input, ctc_preds, ctc_lengths
-
-
-

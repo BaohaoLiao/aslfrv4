@@ -112,6 +112,8 @@ def main():
     model(virtual_intput)
     #logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
+    model.save(os.path.join(args.output_dir, 'model.keras'))
+
     preprocess_layer = PreprocessLayer(args.max_source_length)
     tflitemodel = TFLiteModel(
         model, preprocess_layer, args.start_token_id, args.end_token_id, args.pad_token_id, args.max_gen_length)

@@ -109,6 +109,7 @@ def main():
         np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
         np.zeros((1, args.max_target_length), dtype=np.int32)
     )
+    model(virtual_intput)
     #logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
     preprocess_layer = PreprocessLayer(args.max_source_length)

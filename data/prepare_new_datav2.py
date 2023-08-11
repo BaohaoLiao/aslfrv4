@@ -43,8 +43,6 @@ def main(data_dir: str, output_path: str, start_idx: int, end_idx):
         frames = []
         file_names = []
         for index, row in tqdm(df.iterrows()):
-            if index > 10:
-                break
             image_files = []
             for i in range(row["number_of_frames"]):
                 image_files.append(os.path.join(data_dir, row["filename"]) + "/" + str(i+1).zfill(4) + ".jpg")

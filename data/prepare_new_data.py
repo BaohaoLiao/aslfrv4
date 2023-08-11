@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import mediapipe as mp
-from metadata import XY_POINT_LANDMARKS
+from .metadata import XY_POINT_LANDMARKS
 
 
 mp_drawing = mp.solutions.drawing_utils

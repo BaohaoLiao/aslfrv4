@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import mediapipe as mp
+from tqdm import tqdm
 from metadata import XY_POINT_LANDMARKS
 
 
@@ -26,8 +27,8 @@ def main(data_dir: str, output_path: str):
         landmarks = []
         frames = []
         file_names = []
-        for index, row in df.iterrows():
-            if index > 10:
+        for index, row in tqdm(df.iterrows()):
+            if index > 100:
                 break
             image_files = []
             for i in range(row["number_of_frames"]):

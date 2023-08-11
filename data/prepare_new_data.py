@@ -1,3 +1,18 @@
+"""
+Install:
+pip install pandas
+pip install fire
+pip install opencv-python
+pip install mediapipe
+pip install tqdm
+
+RUN:
+python aslfrv4/data/prepare_new_data.py \
+--data_dir /ivi/ilps/projects/ltl-mt/baohao/aslfr/ChicagoFSWild \
+--output_path /ivi/ilps/projects/ltl-mt/baohao/aslfr/ChicagoFSWild/chicago.parquet.gzip
+"""
+
+
 import os
 import fire
 import numpy as np
@@ -28,7 +43,7 @@ def main(data_dir: str, output_path: str):
         frames = []
         file_names = []
         for index, row in tqdm(df.iterrows()):
-            if index > 100:
+            if index > 10:
                 break
             image_files = []
             for i in range(row["number_of_frames"]):

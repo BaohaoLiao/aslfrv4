@@ -63,7 +63,7 @@ def main(data_dir: str, output_path: str):
     parquet_df = pd.DataFrame(parquet_df)
     selected_columns = ["file_name"] + ["frame"] + XY_POINT_LANDMARKS
     filtered_parquet_df = parquet_df[selected_columns]
-    filtered_parquet_df.to_parquet('parquet.gzip', compression='gzip')
+    filtered_parquet_df.to_parquet(output_path, compression='gzip')
 
 
 if __name__ == "__main__":

@@ -66,13 +66,13 @@ def main(data_dir: str, output_path: str, start_idx: int, end_idx):
             parquet_df[coord + "_face_" + str(i)] = landmarks[:, i * 3 + j]
     for i in range(33):
         for j, coord in enumerate(["x", "y", "z"]):
-            parquet_df[coord + "_pose_" + str(i)] = landmarks[:, 478 * 3 + i * 3 + j]
+            parquet_df[coord + "_pose_" + str(i)] = landmarks[:, 468 * 3 + i * 3 + j]
     for i in range(21):
         for j, coord in enumerate(["x", "y", "z"]):
-            parquet_df[coord + "_left_hand_" + str(i)] = landmarks[:, 478 * 3 + 33 * 3 + i * 3 + j]
+            parquet_df[coord + "_left_hand_" + str(i)] = landmarks[:, 468 * 3 + 33 * 3 + i * 3 + j]
     for i in range(21):
         for j, coord in enumerate(["x", "y", "z"]):
-            parquet_df[coord + "_right_hand_" + str(i)] = landmarks[:, 478 * 3 + 33 * 3 + 21 * 3 + i * 3 + j]
+            parquet_df[coord + "_right_hand_" + str(i)] = landmarks[:, 468 * 3 + 33 * 3 + 21 * 3 + i * 3 + j]
 
     parquet_df = pd.DataFrame(parquet_df)
     selected_columns = ["file_name"] + ["frame"] + XY_POINT_LANDMARKS

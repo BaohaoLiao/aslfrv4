@@ -351,3 +351,42 @@ class Conformer(tf.keras.Model):
         logits = self(source, training=False)
         preds = tf.argmax(logits, axis=-1, output_type=tf.int32)
         return preds, lengths
+
+
+class TFLiteModel(tf.Module):
+    def __init__(self, model, preprocess_layer, pad_token_id, max_gen_length):
+        super(TFLiteModel, self).__init__()
+        self.pad_token_id = pad_token_id
+        self.max_gen_length = max_gen_length
+        self.model = model
+        self.preprocess_layer = preprocess_layer
+
+    @tf.function(jit_compile=True)
+    def encoder(self, x):
+        logits_mask = tf.reduce_sum(tf.cast(x != PAD, tf.float32), axis=2) != 0
+        length = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
+        encoder_out = self.model.encoder(x, mask=logits_mask, training=False)
+        logits = self.model.ctc_head(encoder_out)
+        pred = tf.argmax(logits, axis=-1, output_type=tf.int32)
+        return pred, length
+
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, len(XY_POINT_LANDMARKS)], dtype=tf.float32, name='inputs')])
+    def __call__(self, inputs, training=False):
+        x = tf.cast(inputs, tf.float32)
+        x = x[None]
+        x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
+        x = x[0]
+
+        x = self.preprocess_layer(x)
+        x = x[None]
+        x, length = self.encoder(x)
+
+        diff = tf.not_equal(x[:-1], x[1:])
+        adjacent_indices = tf.where(diff)[:, 0]
+        x = tf.gather(x, adjacent_indices)
+        mask = x != self.pad_token_id
+        x = tf.boolean_mask(x, mask, axis=0)
+
+        x = x[:self.max_gen_length]
+        x = tf.one_hot(x, 59) # how about not in 59?
+        return {'outputs': x}

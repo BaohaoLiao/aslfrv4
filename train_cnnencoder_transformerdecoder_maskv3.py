@@ -105,7 +105,7 @@ def main():
         tf.random.set_seed(seed)
     seed_everything(seed=args.seed)
 
-    ## Load data
+    ## Load prepare_data
     with open(os.path.join(args.data_dir, "character_to_prediction_index.json"), "r") as f:
         char_to_num = json.load(f)
     char_to_num[args.pad_token] = args.pad_token_id

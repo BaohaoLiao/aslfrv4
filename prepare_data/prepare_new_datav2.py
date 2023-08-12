@@ -7,7 +7,7 @@ pip install mediapipe
 pip install tqdm
 
 RUN:
-python aslfrv4/data/prepare_new_data.py \
+python aslfrv4/prepare_data/prepare_new_data.py \
 --data_dir /ivi/ilps/projects/ltl-mt/baohao/aslfr/ChicagoFSWild \
 --output_path /ivi/ilps/projects/ltl-mt/baohao/aslfr/ChicagoFSWild/chicago.parquet.gzip
 """
@@ -35,16 +35,14 @@ def extract_keypoints(results):
     rh = np.array([[res.x, res.y, res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3) * np.nan
     return np.concatenate([face, pose, lh, rh])
 
-def main(data_dir: str, output_path: str):
-    df = pd.read_csv(os.path.join(data_dir, "batch.csv"))
+def main(data_dir: str, output_path: str, start_idx: int, end_idx):
+    df = pd.read_csv(os.path.join(data_dir, "batch.csv"))[start_idx:end_idx]
 
     with mp_holistic.Holistic(static_image_mode=True, model_complexity=2, refine_face_landmarks=False) as holistic:
         landmarks = []
         frames = []
         file_names = []
         for index, row in tqdm(df.iterrows()):
-            if index > 10:
-                break
             image_files = []
             for i in range(row["number_of_frames"]):
                 image_files.append(os.path.join(data_dir, row["filename"]) + "/" + str(i+1).zfill(4) + ".jpg")

@@ -295,7 +295,7 @@ class CNN(tf.keras.Model):
         logits_mask = tf.reduce_sum(tf.cast(source != PAD, tf.float32), axis=2) != 0
         logits_length = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
         target_length = tf.reduce_sum(tf.cast(target != self.pad_token_id, tf.int32), axis=-1)
-        preds = self(source, training=True)
+        preds = self(source, training=False)
         loss = self.loss_fn(
             labels=target,
             logits=preds,

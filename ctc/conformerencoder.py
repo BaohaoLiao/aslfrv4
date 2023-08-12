@@ -380,7 +380,8 @@ class TFLiteModel(tf.Module):
         x = self.preprocess_layer(x)
         x = x[None]
         x, length = self.encoder(x)
-        x = x[0][:length]
+        tf.print(tf.shape(x))
+        x = x[0]
 
         diff = tf.not_equal(x[:-1], x[1:])
         adjacent_indices = tf.where(diff)[:, 0]

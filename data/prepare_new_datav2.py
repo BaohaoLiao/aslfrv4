@@ -61,7 +61,7 @@ def main(data_dir: str, output_path: str, start_idx: int, end_idx):
     parquet_df["file_name"] = file_names
     parquet_df["frame"] = frames
 
-    for i in range(478):
+    for i in range(468):
         for j, coord in enumerate(["x", "y", "z"]):
             parquet_df[coord + "_face_" + str(i)] = landmarks[:, i * 3 + j]
     for i in range(33):

@@ -10,7 +10,7 @@ import tensorflow as tf
 from optimizer import LRInverseSqrtScheduler
 from encoderonly.data_encoderonly import load_dataset
 from encoderonly.displayv2 import DisplayOutputs
-from ctc.conformerencoder import ConformerEncoder
+from ctc.conformerencoder import Conformer
 from metadata import XY_POINT_LANDMARKS
 
 logging.basicConfig(
@@ -147,7 +147,7 @@ def main():
 
     with strategy.scope():
         if args.model_arch == "conformerencoder":
-            model = ConformerEncoder(
+            model = Conformer(
                 num_encoder_layers=args.num_encoder_layers,
                 encoder_hidden_dim=args.encoder_hidden_dim,
                 encoder_mlp_dim=args.encoder_mlp_dim,

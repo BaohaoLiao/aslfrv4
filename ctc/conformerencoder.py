@@ -251,7 +251,7 @@ class LMHead(tf.keras.layers.Layer):
         return self.dense2(x)
 
 
-class ConformerEncoder(tf.keras.Model):
+class Conformer(tf.keras.Model):
     def __init__(
         self,
         num_encoder_layers: int,
@@ -267,7 +267,7 @@ class ConformerEncoder(tf.keras.Model):
         attn_dropout: float,
         hidden_dropout: float,
         activation: str):
-        super(ConformerEncoder, self).__init__()
+        super(Conformer, self).__init__()
         self.vocab_size = vocab_size
         self.pad_token_id = pad_token_id
         self.encoder = ConformerEncoder(
@@ -282,6 +282,7 @@ class ConformerEncoder(tf.keras.Model):
             hidden_dropout=hidden_dropout,
             max_source_length=max_source_length,
             name="encoder")
+
         self.ctc_head = LMHead(
             d_model=encoder_hidden_dim,
             vocab_size=vocab_size,

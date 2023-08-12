@@ -162,7 +162,7 @@ def main():
                 hidden_dropout=args.hidden_dropout,
                 activation=args.activation)
 
-        virtual_intput = np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32),
+        virtual_intput = np.zeros((1, args.max_source_length, 3 * len(XY_POINT_LANDMARKS)), dtype=np.float32)
         logging.info(f"{tf.shape(model(virtual_intput))}")
         logging.info(model.summary())
 

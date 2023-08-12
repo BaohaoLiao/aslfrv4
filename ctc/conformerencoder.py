@@ -292,7 +292,6 @@ class Conformer(tf.keras.Model):
 
     def call(self, inputs, training=False):
         source = inputs
-        tf.print(tf.shape(source))
         encoder_attention_mask = tf.reduce_sum(tf.cast(source!=PAD, tf.float32), axis=2)!=0
         encoder_out = self.encoder(source, mask=encoder_attention_mask, training=training)
         return self.ctc_head(encoder_out)

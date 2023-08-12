@@ -691,7 +691,7 @@ class TFLiteModel(tf.Module):
 
 class TFLiteModelEncoderOnly(tf.Module):
     def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length):
-        super(TFLiteModel, self).__init__()
+        super(TFLiteModelEncoderOnly, self).__init__()
         self.start_token_id = start_token_id
         self.end_token_id = end_token_id
         self.pad_token_id = pad_token_id

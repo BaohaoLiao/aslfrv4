@@ -219,5 +219,5 @@ def main():
         validation_steps=-(num_valid // -args.batch_size),
         callbacks=callbacks)
 
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()

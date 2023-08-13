@@ -470,7 +470,7 @@ class TFLiteModelBeamSearch(tf.Module):
 
         length = [len(x)]
         x = tf.expand_dims(x, axis=1)
-        x = tf.nn.ctc_beam_search_decoder(x, length, beam_width=5, top_paths=1)[0][0].values
+        x = tf.nn.ctc_beam_search_decoder(x, length, beam_width=10, top_paths=1)[0][0].values
 
         x = x[:self.max_gen_length]
         x = tf.one_hot(x, 59) # how about not in 59?

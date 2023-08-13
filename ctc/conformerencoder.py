@@ -409,8 +409,9 @@ class TFLiteModelBestPath(tf.Module):
         length = tf.reduce_sum(tf.cast(logits_mask, tf.int32), axis=-1)
         encoder_out = self.model.encoder(x, mask=logits_mask, training=False)
         logits = self.model.ctc_head(encoder_out)
-        pred = tf.argmax(logits, axis=-1, output_type=tf.int32)
-        return pred, length
+        #pred = tf.argmax(logits, axis=-1, output_type=tf.int32)
+        #return pred, length
+        return logits, length
 
     @tf.function(input_signature=[tf.TensorSpec(shape=[None, len(XY_POINT_LANDMARKS)], dtype=tf.float32, name='inputs')])
     def __call__(self, inputs, training=False):

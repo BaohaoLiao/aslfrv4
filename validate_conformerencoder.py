@@ -7,7 +7,7 @@ import tensorflow as tf
 from datetime import datetime
 from Levenshtein import distance as Lev_distance
 
-from ctc.conformerencoder import Conformer, TFLiteModel, TFLiteModelBestPath
+from ctc.conformerencoder import Conformer, TFLiteModel, TFLiteModelBestPath, TFLiteModelBeamSearch
 from metadata import XY_POINT_LANDMARKS, PAD
 from data import filter_nans_tf, tf_nan_mean, tf_nan_std, decode_fn
 from train_conformerencoder_distributed import parse_args
@@ -102,7 +102,7 @@ def main():
     #model.save(os.path.join(args.output_dir, 'model.h5py'), save_format='tf')
 
     preprocess_layer = PreprocessLayer(args.max_source_length)
-    tflitemodel = TFLiteModelBestPath(model, preprocess_layer, args.pad_token_id, args.max_gen_length)
+    tflitemodel = TFLiteModelBeamSearch(model, preprocess_layer, args.pad_token_id, args.max_gen_length)
 
 
     with open(os.path.join(args.data_dir, "character_to_prediction_index.json"), "r") as f:

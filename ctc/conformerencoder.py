@@ -424,6 +424,11 @@ class TFLiteModelBestPath(tf.Module):
         x, length = self.encoder(x)
         x = x[0]
 
+        length = [len(x)]
+        x = tf.expand_dims(x, axis=1)
+        x = tf.nn.ctc_greedy_decoder(x, length, merge_repeated=True, blank_index=self.pad_token_id)[0][0].values
+
+        """        
         shifted_x = tf.roll(x, shift=-1, axis=0)
         is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])
 
@@ -433,6 +438,7 @@ class TFLiteModelBestPath(tf.Module):
         # Filter out elements that are duplicates or equal to pad_token_id
         x_deduplicated = tf.boolean_mask(x, tf.math.logical_not(is_same_as_next))
         x = tf.boolean_mask(x_deduplicated, tf.math.not_equal(x_deduplicated, self.pad_token_id))
+        """
 
         x = x[:self.max_gen_length]
         x = tf.one_hot(x, 59) # how about not in 59?
@@ -471,7 +477,6 @@ class TFLiteModelBeamSearch(tf.Module):
         #length = [len(x)]
         #x = tf.expand_dims(x, axis=1)
         #x = tf.nn.ctc_greedy_decoder(x, length, merge_repeated=True, blank_index=self.pad_token_id)[0][0].values
-
 
         shifted_x = tf.concat([x[1:], x[:1]], axis=0) #tf.roll(x, shift=-1, axis=0)
         is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])

@@ -424,7 +424,16 @@ class TFLiteModelBestPath(tf.Module):
         x, length = self.encoder(x)
         x = x[0]
 
-        x = np.array([k for k, _ in groupby(x) if k != self.pad_token_id])
+        shifted_x = tf.roll(x, shift=-1, axis=0)
+        is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])
+
+        # Add a 'False' to the end to keep the last element
+        is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
+
+        # Filter out elements that are duplicates or equal to pad_token_id
+        x_deduplicated = tf.boolean_mask(x, tf.math.logical_not(is_same_as_next))
+        x = tf.boolean_mask(x_deduplicated, tf.math.not_equal(x_deduplicated, self.pad_token_id))
+
         x = x[:self.max_gen_length]
         x = tf.one_hot(x, 59) # how about not in 59?
         return {'outputs': x}

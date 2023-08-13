@@ -238,7 +238,7 @@ class LMHead(tf.keras.layers.Layer):
             activation='relu',
             use_bias=True,
             name="dense1")
-        #self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="layer_norm")
+        self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="layer_norm")
         self.dense2 = tf.keras.layers.Dense(
             vocab_size,
             kernel_initializer=get_initializer(),
@@ -247,7 +247,7 @@ class LMHead(tf.keras.layers.Layer):
 
     def call(self, x):
         x = self.dense1(x)
-        #x = self.layer_norm(x)
+        x = self.layer_norm(x)
         return self.dense2(x)
 
 

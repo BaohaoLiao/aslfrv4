@@ -36,7 +36,7 @@ def extract_keypoints(results):
     return np.concatenate([face, pose, lh, rh])
 
 def main(data_dir: str, output_path: str, start_idx: int, end_idx):
-    df = pd.read_csv(os.path.join(data_dir, "batch.csv"))[start_idx:end_idx]
+    df = pd.read_csv(os.path.join(data_dir, "ChicagoFSWild.csv"))[start_idx:end_idx]
 
     with mp_holistic.Holistic(static_image_mode=True, model_complexity=2, refine_face_landmarks=False) as holistic:
         landmarks = []

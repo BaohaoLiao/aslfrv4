@@ -164,7 +164,7 @@ def main():
         if args.num_folds == 20:
             num_train += 50927
         if args.num_folds == 31:
-            num_train = num_train + 55231 + 7304
+            num_train = num_train + 50927 + 55231 + 7304
     num_valid = args.num_valid
     steps_per_epoch = num_train // args.batch_size
     total_steps = num_train * args.num_epochs // args.batch_size

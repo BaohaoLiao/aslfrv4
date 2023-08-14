@@ -822,7 +822,7 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                     encoder_attention_mask=encoder_attention_mask)[:, :, :60])
 
             last_logit = tf.cond(
-                False, #tf.math.less(i, tf.shape(ctc_logits)[1]),
+                tf.constant([False]), #tf.math.less(i, tf.shape(ctc_logits)[1]),
                 lambda: tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i+1, :60], axis=-1, output_type=tf.int32),
                 lambda: tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
             )

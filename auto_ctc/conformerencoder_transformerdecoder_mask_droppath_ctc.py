@@ -770,7 +770,7 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         is_same_as_next = tf.math.equal(ctc_pred[:-1], shifted_ctc_pred[:-1])
         is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
         ctc_pred = tf.boolean_mask(ctc_pred, tf.math.logical_not(is_same_as_next))
-        ctc_logits = tf.gather(ctc_logits, tf.math.logical_not(is_same_as_next))
+        ctc_logits = tf.boolean_mask(ctc_logits, tf.math.logical_not(is_same_as_next))
 
         mask = ctc_pred != self.pad_token_id
         ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)

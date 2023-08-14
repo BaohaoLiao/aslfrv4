@@ -758,8 +758,9 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         encoder_out = self.model.encoder(x, mask=encoder_attention_mask, training=False)
 
         length = tf.reduce_sum(tf.cast(encoder_attention_mask, tf.int32), axis=-1)
-        ctc_logits = self.model.ctc_head(encoder_out)[0]
+        ctc_logits = self.model.ctc_head(encoder_out)
         ctc_pred = tf.argmax(ctc_logits, axis=-1, output_type=tf.int32)[0]
+        ctc_logits = ctc_logits[0]
 
         diff = tf.not_equal(ctc_pred[:-1], ctc_pred[1:])
         adjacent_indices = tf.where(diff)[:, 0]

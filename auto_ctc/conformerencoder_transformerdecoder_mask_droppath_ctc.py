@@ -758,12 +758,27 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         encoder_out = self.model.encoder(x, mask=encoder_attention_mask, training=False)
 
         length = tf.reduce_sum(tf.cast(encoder_attention_mask, tf.int32), axis=-1)
+        ctc_logits = self.model.ctc_head(encoder_out)[0]
+        ctc_pred = tf.argmax(ctc_logits, axis=-1, output_type=tf.int32)[0]
+
+        diff = tf.not_equal(ctc_pred[:-1], ctc_pred[1:])
+        adjacent_indices = tf.where(diff)[:, 0]
+        ctc_pred = tf.gather(ctc_pred, adjacent_indices)
+        ctc_logits = tf.gather(ctc_logits, adjacent_indices)
+
+        mask = ctc_pred != self.pad_token_id
+        ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
+        ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
+        mask = ctc_pred != self.start_token_id
+        ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
+        ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
+        mask = ctc_pred != self.end_token_id
+        ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
+        ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
 
         if self.model.encoder_proj is not None:
             encoder_out = self.model.encoder_proj(encoder_out)
-
-
-        return encoder_out, encoder_attention_mask
+        return ctc_logits, encoder_out, encoder_attention_mask
 
     @tf.function(jit_compile=True)
     def decoder(self, dec_input, encoder_out, encoder_attention_mask):
@@ -785,11 +800,12 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         x = self.preprocess_layer(x)
         x = x[None]
         batch_size = tf.shape(x)[0]
-        encoder_out, encoder_attention_mask = self.encoder(x)
+        ctc_logits, encoder_out, encoder_attention_mask = self.encoder(x)
+        ctc_logits = ctc_logits[None]
         dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
 
         stop = tf.zeros((1,), dtype=tf.bool)
-        for _ in tf.range(self.max_gen_length-1):
+        for i in tf.range(self.max_gen_length-1):
             tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
             logits = tf.cond(
                 stop[0],
@@ -798,8 +814,13 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                     dec_input=dec_input,
                     encoder_out=encoder_out,
                     encoder_attention_mask=encoder_attention_mask)[:, :, :60])
-            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
-            last_logit = logits[:, -1][..., tf.newaxis]
+            if i <= tf.shape(ctc_logits[1]):
+                last_logit = logits[:, -1:, :] + ctc_logits[:, i:i+1, :]  # TODO: prob or logit
+                last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
+            else:
+                logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
+                last_logit = logits[:, -1][..., tf.newaxis]
+
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 

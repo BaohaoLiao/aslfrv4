@@ -784,7 +784,6 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
 
     @tf.function(jit_compile=True)
     def decoder(self, dec_input, encoder_out, encoder_attention_mask):
-        tf.print("hi")
         dec_output = self.model.decoder(
             input_ids=dec_input,
             encoder_out=encoder_out,
@@ -827,7 +826,6 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
             else:
                 logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
                 last_logit = logits[:, -1][..., tf.newaxis]
-            tf.print(i)
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 

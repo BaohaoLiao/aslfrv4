@@ -807,7 +807,11 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
 
         stop = tf.zeros((1,), dtype=tf.bool)
         for i in tf.range(self.max_gen_length-1):
-            tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
+            tf.autograph.experimental.set_loop_options(
+                shape_invariants=[
+                    (dec_input, tf.TensorShape([1, None])),
+                    (stop, tf.TensorShape([None]))
+                ])
             logits = tf.cond(
                 stop[0],
                 lambda: tf.one_hot(tf.cast(dec_input, tf.int32), 60),

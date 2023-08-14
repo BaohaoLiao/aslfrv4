@@ -784,6 +784,7 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
 
     @tf.function(jit_compile=True)
     def decoder(self, dec_input, encoder_out, encoder_attention_mask):
+        tf.print("hi")
         dec_output = self.model.decoder(
             input_ids=dec_input,
             encoder_out=encoder_out,

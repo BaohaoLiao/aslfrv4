@@ -820,12 +820,12 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                     dec_input=dec_input,
                     encoder_out=encoder_out,
                     encoder_attention_mask=encoder_attention_mask)[:, :, :60])
-            #if i < tf.shape(ctc_logits)[1]:
-            #last_logit = logits[:, -1:, :] + ctc_logits[:, i:i+1, :60]  # TODO: prob or logit
-            #last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
-            #else:
-            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
-            last_logit = logits[:, -1][..., tf.newaxis]
+            if tf.math.less(i, tf.shape(ctc_logits)[1]):
+                last_logit = logits[:, -1:, :] + ctc_logits[:, i:i+1, :60]  # TODO: prob or logit
+                last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
+            else:
+                logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
+                last_logit = logits[:, -1][..., tf.newaxis]
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 

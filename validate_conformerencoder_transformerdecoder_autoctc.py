@@ -113,7 +113,7 @@ def main():
     model(virtual_intput)
     #logging.info(f"{tf.shape(model(virtual_intput))}")
     model.load_weights(args.checkpoint_path)
-    model.save(os.path.join(args.output_dir, 'model.h5py'), save_format='tf')
+    #model.save(os.path.join(args.output_dir, 'model.h5py'), save_format='tf')
 
     #del model
     #model = keras.models.load_model(os.path.join(args.output_dir, 'model.h5py'))

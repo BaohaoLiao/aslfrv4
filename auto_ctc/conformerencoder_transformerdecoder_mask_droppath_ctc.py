@@ -821,8 +821,8 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                     encoder_out=encoder_out,
                     encoder_attention_mask=encoder_attention_mask)[:, :, :60])
             if i <= tf.shape(ctc_logits)[1]:
-                tf.print("hi")
                 last_logit = logits[:, -1:, :] + ctc_logits[:, i:i+1, :60]  # TODO: prob or logit
+                tf.print("hi", last_logit)
                 last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
             else:
                 logits = tf.argmax(logits, axis=-1, output_type=tf.int32)

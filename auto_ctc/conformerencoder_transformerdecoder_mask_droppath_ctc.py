@@ -777,6 +777,13 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         mask = ctc_pred != self.end_token_id
         ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
         ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
+        ctc_logits = ctc_logits[:self.max_gen_length]  # Todo: check
+
+
+        length = tf.shape(ctc_logits)[0]
+        dim = tf.shape(ctc_logits)[1]
+        zeros = tf.zeros((self.max_gen_length-length, dim))
+        ctc_logits = tf.concat([ctc_logits, zeros], axis=0)
 
         if self.model.encoder_proj is not None:
             encoder_out = self.model.encoder_proj(encoder_out)
@@ -834,14 +841,15 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                 logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
                 last_logit = logits[:, -1][..., tf.newaxis]
             """
-            condition_mask = tf.math.less(i, tf.shape(ctc_logits)[1])
-
+            #condition_mask = tf.math.less(i, tf.shape(ctc_logits)[1])
             # Compute both branches of the original tf.cond
-            branch_true = tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i + 1, :60], axis=-1, output_type=tf.int32)
-            branch_false = tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
-
+            #branch_true = tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i + 1, :60], axis=-1, output_type=tf.int32)
+            #branch_false = tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
             # Use tf.where to combine the results based on the condition_mask
-            last_logit = tf.where(condition_mask, branch_true, branch_false)
+            #last_logit = tf.where(condition_mask, branch_true, branch_false)
+
+            last_logit = logits[:, -1:, :] + ctc_logits[:, i:i + 1, :60]  # TODO: prob or logit
+            last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
 
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)

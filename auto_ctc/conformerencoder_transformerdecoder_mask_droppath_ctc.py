@@ -724,7 +724,8 @@ class TFLiteModelEncoderOnly(tf.Module):
         #adjacent_indices = tf.where(diff)[:, 0]
         #x = tf.gather(x, adjacent_indices)
 
-        shifted_x = tf.concat([x[1:], x[:1]], axis=0)
+        #shifted_x = tf.concat([x[1:], x[:1]], axis=0)
+        shifted_x = tf.concat([x[-1:], x[:-1]], axis=0)
         is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])
         is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
         x = tf.boolean_mask(x, tf.math.logical_not(is_same_as_next))

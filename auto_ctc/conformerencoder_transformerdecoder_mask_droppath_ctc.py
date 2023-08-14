@@ -811,6 +811,7 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
             tf.autograph.experimental.set_loop_options(
                 shape_invariants=[
                     (dec_input, tf.TensorShape([1, None])),
+                    (stop, tf.TensorShape([None])),
                 ])
             logits = tf.cond(
                 stop[0],

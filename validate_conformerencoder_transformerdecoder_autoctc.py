@@ -164,7 +164,7 @@ def main():
     global_n, global_d = 0, 0
     local_score = 0
     start_time = datetime.now()
-    n_samples = 10
+    n_samples = 1
     for i, batch in enumerate(batches[:n_samples]):
         output = tflitemodel(inputs=batch[0][0])
         prediction_str = "".join([num_to_char.get(s, "") for s in np.argmax(output["outputs"], axis=1)])

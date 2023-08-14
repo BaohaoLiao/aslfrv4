@@ -724,12 +724,10 @@ class TFLiteModelEncoderOnly(tf.Module):
         #adjacent_indices = tf.where(diff)[:, 0]
         #x = tf.gather(x, adjacent_indices)
 
-        #shifted_x = tf.concat([x[1:], x[:1]], axis=0)
-        shifted_x = tf.concat([x[-1:], x[:-1]], axis=0)
+        shifted_x = tf.concat([x[1:], x[:1]], axis=0)
         is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])
         is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
         x = tf.boolean_mask(x, tf.math.logical_not(is_same_as_next))
-
 
         mask = x != self.pad_token_id
         x = tf.boolean_mask(x, mask, axis=0)
@@ -763,10 +761,16 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         ctc_pred = tf.argmax(ctc_logits, axis=-1, output_type=tf.int32)[0]
         ctc_logits = ctc_logits[0]
 
-        diff = tf.not_equal(ctc_pred[:-1], ctc_pred[1:])
-        adjacent_indices = tf.where(diff)[:, 0]
-        ctc_pred = tf.gather(ctc_pred, adjacent_indices)
-        ctc_logits = tf.gather(ctc_logits, adjacent_indices)
+        #diff = tf.not_equal(ctc_pred[:-1], ctc_pred[1:])
+        #adjacent_indices = tf.where(diff)[:, 0]
+        #ctc_pred = tf.gather(ctc_pred, adjacent_indices)
+        #ctc_logits = tf.gather(ctc_logits, adjacent_indices)
+
+        shifted_ctc_pred = tf.concat([ctc_pred[1:], ctc_pred[:1]], axis=0)
+        is_same_as_next = tf.math.equal(ctc_pred[:-1], shifted_ctc_pred[:-1])
+        is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
+        ctc_pred = tf.boolean_mask(ctc_pred, tf.math.logical_not(is_same_as_next))
+        ctc_logits = tf.gather(ctc_logits, tf.math.logical_not(is_same_as_next))
 
         mask = ctc_pred != self.pad_token_id
         ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
@@ -778,7 +782,6 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
         ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
         ctc_logits = ctc_logits[:self.max_gen_length]  # Todo: check
-
 
         length = tf.shape(ctc_logits)[0]
         dim = tf.shape(ctc_logits)[1]

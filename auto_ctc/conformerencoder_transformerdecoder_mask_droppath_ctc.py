@@ -821,11 +821,11 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                     encoder_out=encoder_out,
                     encoder_attention_mask=encoder_attention_mask)[:, :, :60])
 
-            last_logit = tf.cond(
-                tf.constant([False]), #tf.math.less(i, tf.shape(ctc_logits)[1]),
-                lambda: tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i+1, :60], axis=-1, output_type=tf.int32),
-                lambda: tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
-            )
+            #last_logit = tf.cond(
+            #    tf.math.less(i, tf.shape(ctc_logits)[1]),
+            #    lambda: tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i+1, :60], axis=-1, output_type=tf.int32),
+            #    lambda: tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
+            #)
             """
             if tf.math.less(i, tf.shape(ctc_logits)[1]):
                 last_logit = logits[:, -1:, :] + ctc_logits[:, i:i+1, :60]  # TODO: prob or logit
@@ -834,6 +834,15 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
                 logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
                 last_logit = logits[:, -1][..., tf.newaxis]
             """
+            condition_mask = tf.math.less(i, tf.shape(ctc_logits)[1])
+
+            # Compute both branches of the original tf.cond
+            branch_true = tf.argmax(logits[:, -1:, :] + ctc_logits[:, i:i + 1, :60], axis=-1, output_type=tf.int32)
+            branch_false = tf.argmax(logits, axis=-1, output_type=tf.int32)[:, -1][..., tf.newaxis]
+
+            # Use tf.where to combine the results based on the condition_mask
+            last_logit = tf.where(condition_mask, branch_true, branch_false)
+
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 

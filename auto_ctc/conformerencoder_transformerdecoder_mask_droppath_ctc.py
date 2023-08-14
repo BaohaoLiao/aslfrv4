@@ -826,7 +826,6 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
             else:
                 logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
                 last_logit = logits[:, -1][..., tf.newaxis]
-            tf.print(last_logit[0] == self.end_token_id, tf.logical_or(stop, last_logit[0] == self.end_token_id))
             dec_input = tf.concat([dec_input, last_logit], axis=-1)
             stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
 

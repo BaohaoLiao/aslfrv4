@@ -720,9 +720,16 @@ class TFLiteModelEncoderOnly(tf.Module):
         x, length = self.encoder(x)
         x = x[0]
 
-        diff = tf.not_equal(x[:-1], x[1:])
-        adjacent_indices = tf.where(diff)[:, 0]
-        x = tf.gather(x, adjacent_indices)
+        #diff = tf.not_equal(x[:-1], x[1:])
+        #adjacent_indices = tf.where(diff)[:, 0]
+        #x = tf.gather(x, adjacent_indices)
+
+        shifted_x = tf.concat([x[1:], x[:1]], axis=0)
+        is_same_as_next = tf.math.equal(x[:-1], shifted_x[:-1])
+        is_same_as_next = tf.concat([is_same_as_next, [False]], axis=0)
+        x = tf.boolean_mask(x, tf.math.logical_not(is_same_as_next))
+
+
         mask = x != self.pad_token_id
         x = tf.boolean_mask(x, mask, axis=0)
         mask = x != self.start_token_id
@@ -734,3 +741,71 @@ class TFLiteModelEncoderOnly(tf.Module):
         x = tf.one_hot(x, 59)  # how about not in 59?
         return {'outputs': x}
 
+
+class TFLiteModelEnsembleAutoCTC(tf.Module):
+    def __init__(self, model, preprocess_layer, start_token_id, end_token_id, pad_token_id, max_gen_length):
+        super(TFLiteModelEnsembleAutoCTC, self).__init__()
+        self.start_token_id = start_token_id
+        self.end_token_id = end_token_id
+        self.pad_token_id = pad_token_id
+        self.max_gen_length = max_gen_length
+        self.model = model
+        self.preprocess_layer = preprocess_layer
+
+    @tf.function(jit_compile=True)
+    def encoder(self, x):
+        encoder_attention_mask = tf.reduce_sum(tf.cast(x != PAD, tf.float32), axis=2) != 0
+        encoder_out = self.model.encoder(x, mask=encoder_attention_mask, training=False)
+
+        length = tf.reduce_sum(tf.cast(encoder_attention_mask, tf.int32), axis=-1)
+
+        if self.model.encoder_proj is not None:
+            encoder_out = self.model.encoder_proj(encoder_out)
+
+
+        return encoder_out, encoder_attention_mask
+
+    @tf.function(jit_compile=True)
+    def decoder(self, dec_input, encoder_out, encoder_attention_mask):
+        dec_output = self.model.decoder(
+            input_ids=dec_input,
+            encoder_out=encoder_out,
+            encoder_attention_mask=encoder_attention_mask,
+            training=False
+        )
+        return self.model.lm_head(dec_output)
+
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, len(XY_POINT_LANDMARKS)], dtype=tf.float32, name='inputs')])
+    def __call__(self, inputs, training=False):
+        x = tf.cast(inputs, tf.float32)
+        x = x[None]
+        x = tf.cond(tf.shape(x)[1] == 0, lambda: tf.zeros((1, 1, len(XY_POINT_LANDMARKS))), lambda: tf.identity(x))
+        x = x[0]
+
+        x = self.preprocess_layer(x)
+        x = x[None]
+        batch_size = tf.shape(x)[0]
+        encoder_out, encoder_attention_mask = self.encoder(x)
+        dec_input = tf.ones((batch_size, 1), dtype=tf.int32) * self.start_token_id
+
+        stop = tf.zeros((1,), dtype=tf.bool)
+        for _ in tf.range(self.max_gen_length-1):
+            tf.autograph.experimental.set_loop_options(shape_invariants=[(dec_input, tf.TensorShape([1, None]))])
+            logits = tf.cond(
+                stop[0],
+                lambda: tf.one_hot(tf.cast(dec_input, tf.int32), 60),
+                lambda: self.decoder(
+                    dec_input=dec_input,
+                    encoder_out=encoder_out,
+                    encoder_attention_mask=encoder_attention_mask)[:, :, :60])
+            logits = tf.argmax(logits, axis=-1, output_type=tf.int32)
+            last_logit = logits[:, -1][..., tf.newaxis]
+            dec_input = tf.concat([dec_input, last_logit], axis=-1)
+            stop = tf.logical_or(stop, last_logit[0] == self.end_token_id)
+
+        x = dec_input[0]
+        idx = tf.argmax(tf.cast(tf.equal(x, self.end_token_id), tf.int32))
+        idx = tf.where(tf.math.less(idx, 1), tf.constant(self.max_gen_length, dtype=tf.int64), idx)
+        x = x[1:idx] # replace pad token?
+        x = tf.one_hot(x, 59) # how about not in 59?
+        return {'outputs': x}

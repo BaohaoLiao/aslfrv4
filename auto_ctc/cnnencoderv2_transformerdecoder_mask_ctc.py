@@ -133,11 +133,12 @@ class FeedForward(tf.keras.layers.Layer):
 
 
 class TransformerEncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, mlp_dim, attn_dropout, hidden_dropout, activation, **kwargs):
+    def __init__(self, d_model, num_heads, mlp_dim, attn_dropout, hidden_dropout, activation, max_length, **kwargs):
         super(TransformerEncoderLayer, self).__init__(**kwargs)
         self.supports_masking = True
         self.norm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln1")
-        self.attention = MultiHeadSelfAttention(d_model, num_heads, attn_dropout, name="custom_attention")
+        self.attention = MultiHeadSelfAttention(
+            d_model, num_heads, attn_dropout, max_length=max_length, name="custom_attention")
         self.attn_dropout = tf.keras.layers.Dropout(hidden_dropout, noise_shape=(None, 1, 1))
 
         self.norm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln2")
@@ -161,7 +162,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
 
 class CNNEncoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout, hidden_dropout,
-        activation, **kwargs):
+        activation, max_source_length, **kwargs):
         super(CNNEncoderLayer, self).__init__(**kwargs)
         self.convs = [Conv1DBlock(
             d_model=d_model,
@@ -178,6 +179,7 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
             attn_dropout=attn_dropout,
             hidden_dropout=hidden_dropout,
             activation=activation,
+            max_length=max_source_length,
             name="transformer_encoder")
 
     def call(self, inputs, mask, training):
@@ -190,7 +192,7 @@ class CNNEncoderLayer(tf.keras.layers.Layer):
 
 class CNNEncoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, kernel_size, dilation_rate, num_heads, mlp_dim, conv_dim, attn_dropout,
-            hidden_dropout, activation, **kwargs):
+            hidden_dropout, activation, max_source_length, **kwargs):
         super(CNNEncoder, self).__init__(**kwargs)
         self.embedding = LandmarkEmbedding(d_model, name="landmark_embedding")
         self.layers = [
@@ -204,6 +206,7 @@ class CNNEncoder(tf.keras.layers.Layer):
                 attn_dropout=attn_dropout,
                 hidden_dropout=hidden_dropout,
                 activation=activation,
+                max_source_length=max_source_length,
                 name=f"encoder_layer{i}") for i in range(num_layers)]
         self.norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="ln")
 
@@ -454,6 +457,7 @@ class CNNEncoderTransformerDecoder(tf.keras.Model):
             attn_dropout=attn_dropout,
             hidden_dropout=hidden_dropout,
             activation=activation,
+            max_source_length=max_source_length,
             name="encoder")
         self.decoder = TransformerDecoder(
             vocab_size=vocab_size,

@@ -11,6 +11,7 @@ from mask.datav2_distributed import load_dataset
 from optimizer import LRInverseSqrtScheduler
 from auto_ctc.display_ctc import DisplayOutputs
 from auto_ctc.cnnencoder_transformerdecoder_mask_ctc import CNNEncoderTransformerDecoder
+from auto_ctc.cnnencoderv2_transformerdecoder_mask_ctc import CNNEncoderTransformerDecoder as CNNEncoderTransformerDecoderv2
 from auto_ctc.conformerencoder_transformerdecoder_mask_droppath_ctc import ConformerEncoderTransformerDecoder
 from metadata import XY_POINT_LANDMARKS
 
@@ -33,6 +34,7 @@ def parse_args():
     # Model args
     parser.add_argument("--model_arch",
                         choices=["cnnencoder_transformerdecoder_ctc",
+                                 "cnnencoder_transformerdecoder_ctcv2",
                                  "conformerencoder_transformerdecoder_ctc"],
                         default="cnnencoder_transformerdecoder_ctc")
     parser.add_argument("--num_encoder_layers", type=int, default=3)
@@ -172,6 +174,29 @@ def main():
     with strategy.scope():
         if args.model_arch == "cnnencoder_transformerdecoder_ctc":
             model = CNNEncoderTransformerDecoder(
+                num_encoder_layers=args.num_encoder_layers,
+                encoder_hidden_dim=args.encoder_hidden_dim,
+                encoder_mlp_dim=args.encoder_mlp_dim,
+                encoder_num_heads=args.encoder_num_heads,
+                encoder_conv_dim=args.encoder_conv_dim,
+                encoder_kernel_size=args.encoder_kernel_size,
+                encoder_dilation_rate=args.encoder_dilation_rate,
+                max_source_length=args.max_source_length,
+                num_decoder_layers=args.num_decoder_layers,
+                vocab_size=args.vocab_size,
+                decoder_hidden_dim=args.decoder_hidden_dim,
+                decoder_mlp_dim=args.decoder_mlp_dim,
+                decoder_num_heads=args.decoder_num_heads,
+                max_target_length=args.max_target_length,
+                pad_token_id=args.pad_token_id,
+                emb_dropout=args.emb_dropout,
+                attn_dropout=args.attn_dropout,
+                hidden_dropout=args.hidden_dropout,
+                learnable_position=args.learnable_position,
+                prenorm=args.prenorm,
+                activation=args.activation)
+        elif args.model_arch == "cnnencoder_transformerdecoder_ctcv2":
+            model = CNNEncoderTransformerDecoderv2(
                 num_encoder_layers=args.num_encoder_layers,
                 encoder_hidden_dim=args.encoder_hidden_dim,
                 encoder_mlp_dim=args.encoder_mlp_dim,

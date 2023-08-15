@@ -851,7 +851,7 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
             # Use tf.where to combine the results based on the condition_mask
             #last_logit = tf.where(condition_mask, branch_true, branch_false)
 
-            last_logit = 0.6 * logits[:, -1:, :] + 0.4 * ctc_logits[:, i:i + 1, :60]  # TODO: prob or logit
+            last_logit = 0.5 * logits[:, -1:, :] + 0.5 * ctc_logits[:, i:i + 1, :60]  # TODO: prob or logit
             last_logit = tf.argmax(last_logit, axis=-1, output_type=tf.int32)
 
             dec_input = tf.concat([dec_input, last_logit], axis=-1)

@@ -185,7 +185,7 @@ def main():
 
     fp16_keras_model_converter = tf.lite.TFLiteConverter.from_keras_model(tflitemodel)
     fp16_keras_model_converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    #fp16_keras_model_converter.target_spec.supported_types = [tf.float16]
+    fp16_keras_model_converter.target_spec.supported_types = [tf.float16]
     fp16_keras_model_converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
     fp16_tflite_model = fp16_keras_model_converter.convert()
     with open(os.path.join(args.output_dir, 'model.tflite'), 'wb') as f:

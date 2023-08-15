@@ -92,6 +92,7 @@ def parse_args():
     # For validation
     parser.add_argument("--checkpoint_path", type=str, required=False)
     parser.add_argument("--max_gen_length", type=int, default=34)
+    parser.add_argument("--display_epoch", type=int, default=150)
     args = parser.parse_args()
     return args
 
@@ -298,7 +299,9 @@ def main():
         pad_token=args.pad_token,
         start_token=args.start_token,
         end_token=args.end_token,
-        max_target_length=args.max_gen_length)
+        max_target_length=args.max_gen_length,
+        display_epoch=args.display_epoch,
+    )
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=os.path.join(args.output_dir, "checkpoint_epoch{epoch:03d}.h5"),
         save_weights_only=True,

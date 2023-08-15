@@ -778,9 +778,9 @@ class TFLiteModelEnsembleAutoCTC(tf.Module):
         mask = ctc_pred != self.start_token_id
         ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
         ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
-        mask = ctc_pred != self.end_token_id
-        ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
-        ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
+        #mask = ctc_pred != self.end_token_id
+        #ctc_pred = tf.boolean_mask(ctc_pred, mask, axis=0)
+        #ctc_logits = tf.boolean_mask(ctc_logits, mask, axis=0)
         ctc_logits = ctc_logits[:self.max_gen_length]  # Todo: check
 
         length = tf.shape(ctc_logits)[0]

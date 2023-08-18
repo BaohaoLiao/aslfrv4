@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument("--warmup_ratio", type=float, default=0.1)
     parser.add_argument("--num_epochs", type=int, default=100)
     parser.add_argument("--max_norm", type=float, default=5.0)
-    parser.add_argument("--label_smoothing", type=int, default=0.1)
+    parser.add_argument("--label_smoothing", type=float, default=0.1)
     parser.add_argument("--verbose", type=int, default=2)
     parser.add_argument("--seed", type=int, default=3407)
     # Data augmentation

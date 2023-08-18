@@ -183,10 +183,11 @@ def main():
     logging.info('Duration: {}'.format(end_time - start_time))
 
     def representative_dataset():
-        n_samples = 2000
+        n_samples = 6000
         for i, batch in enumerate(batches[:n_samples]):
             yield [batch[0][0]]
 
+    start_time = datetime.now()
     fp16_keras_model_converter = tf.lite.TFLiteConverter.from_keras_model(tflitemodel)
     fp16_keras_model_converter.optimizations = [tf.lite.Optimize.DEFAULT]
     fp16_keras_model_converter.representative_dataset = tf.lite.RepresentativeDataset(representative_dataset)
@@ -195,6 +196,8 @@ def main():
     fp16_tflite_model = fp16_keras_model_converter.convert()
     with open(os.path.join(args.output_dir, 'model.tflite'), 'wb') as f:
         f.write(fp16_tflite_model)
+    end_time = datetime.now()
+    logging.info('Duration: {}'.format(end_time - start_time))
 
 if __name__ == "__main__":
     main()

@@ -736,7 +736,7 @@ class TFLiteModelEncoderOnly(tf.Module):
         mask = x != self.end_token_id
         x = tf.boolean_mask(x, mask, axis=0)
 
-        x = x[:self.max_gen_length]
+        #x = x[:self.max_gen_length]
         x = tf.one_hot(x, 59)  # how about not in 59?
         return {'outputs': x}
 

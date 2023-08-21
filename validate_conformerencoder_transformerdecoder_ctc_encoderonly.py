@@ -35,6 +35,7 @@ class PreprocessLayer(tf.keras.layers.Layer):
         frame_dim = tf.shape(inputs)[1]
         x = tf.transpose(tf.reshape(inputs, [n_frames, 2, frame_dim // 2]), perm=[0, 2, 1])  # B x C//2 x 2
         x = filter_nans_tf(x)
+        n_frames = tf.shape(inputs)[0]
         x = x[None, ...]
 
         mean = tf_nan_mean(tf.gather(x, [6], axis=2), axis=[1, 2], keepdims=True)
